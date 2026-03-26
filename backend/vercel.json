@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "functions": {
+    "api/translate.js": {
+      "runtime": "@vercel/node@3.2.26"
+    }
+  },
+  "routes": [
+    {
+      "src": "/privacy",
+      "dest": "/pages/privacy.html"
+    },
+    {
+      "src": "/support",
+      "dest": "/pages/support.html"
+    },
+    {
+      "src": "/api/translate",
+      "dest": "/api/translate.js",
+      "methods": ["POST", "OPTIONS"]
+    }
+  ]
+}

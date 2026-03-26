@@ -1,0 +1,11 @@
+.DS_Store
+Library/
+.derived-data/
+*.xcuserstate
+xcuserdata/
+node_modules/
+.cache/
+.vercel/
+.env
+.env.*
+!.env.example

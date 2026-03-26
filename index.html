@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Translator Game</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --ring: #2a2a2a;
+      --text: #f5f5f5;
+      --muted: #a1a1aa;
+      --accent: #ef4444;
+      --accent-soft: rgba(239, 68, 68, 0.22);
+      --processing: #60a5fa;
+      --size: min(34vw, 180px);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #191919 0%, var(--bg) 45%); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .app { width: min(100%, 420px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
+    .mic-button { position: relative; width: max(140px, var(--size)); aspect-ratio: 1; border: 1px solid var(--ring); border-radius: 999px; background: linear-gradient(180deg, #1d1d1d 0%, var(--surface) 100%); display: grid; place-items: center; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease; box-shadow: 0 16px 50px rgba(0,0,0,0.45); -webkit-tap-highlight-color: transparent; }
+    .mic-button:hover { transform: scale(1.02); }
+    .mic-button:active { transform: scale(0.98); }
+    .mic-button::before { content: ""; position: absolute; inset: -14px; border-radius: inherit; background: transparent; opacity: 0; transition: opacity 180ms ease; pointer-events: none; }
+    .mic-icon, .spinner { width: 36%; height: 36%; position: relative; z-index: 1; }
+    .mic-icon svg, .spinner svg { width: 100%; height: 100%; display: block; }
+    .spinner { display: none; animation: spin 0.9s linear infinite; }
+    .status { min-height: 1.5em; font-size: clamp(16px, 2.5vw, 18px); color: var(--muted); text-align: center; letter-spacing: 0.01em; }
+    #liveButton { font-size: 11px; letter-spacing: 0.12em; color: #a1a1aa; background: transparent; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; transition: all 180ms ease; -webkit-tap-highlight-color: transparent; }
+    #liveButton:hover { border-color: #3a3a3a; color: #d4d4d8; }
+    .state-recording .status { color: #fecaca; }
+    .state-translating .status { color: #bfdbfe; }
+    .state-playing .status { color: #d4d4d8; }
+    .live-active #liveButton { color: #4ade80; border-color: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.25); }
+    .live-active .mic-button { opacity: 0.35; pointer-events: none; cursor: default; }
+    .live-active.live-calibrating .status { color: #93c5fd; }
+    .live-active.live-idle .status { color: #86efac; }
+    .live-active.live-detecting .status { color: #fef08a; }
+    .live-active.live-recording .status { color: #fecaca; }
+    .live-active.live-processing .status { color: #bfdbfe; }
+    .state-recording .mic-button { border-color: rgba(239,68,68,0.6); box-shadow: 0 0 0 1px rgba(239,68,68,0.2), 0 18px 60px rgba(239,68,68,0.18); }
+    .state-recording .mic-button::before { opacity: 1; animation: pulse 1.4s ease-out infinite; background: radial-gradient(circle, var(--accent-soft) 0%, transparent 65%); }
+    .state-translating .mic-button, .state-playing .mic-button { border-color: rgba(96,165,250,0.45); background: linear-gradient(180deg, #1a2330 0%, #10161f 100%); }
+    .state-translating .mic-icon, .state-playing .mic-icon { display: none; }
+    .state-translating .spinner, .state-playing .spinner { display: block; }
+    @keyframes pulse { 0% { transform: scale(0.92); opacity: 0.7; } 70% { transform: scale(1.12); opacity: 0; } 100% { transform: scale(1.12); opacity: 0; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 480px) { .app { gap: 18px; } .mic-button { width: min(56vw, 180px); } }
+  </style>
+</head>
+<body>
+  <main class="app state-idle" id="app" data-state="idle">
+    <button class="mic-button" id="micButton" type="button" aria-label="Microphone button">
+      <span class="mic-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"></rect>
+          <path d="M6 11.5C6 14.8137 8.68629 17.5 12 17.5C15.3137 17.5 18 14.8137 18 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          <path d="M12 17.5V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+          <path d="M9 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </span>
+      <span class="spinner" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.18)" stroke-width="2"></circle>
+          <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></path>
+        </svg>
+      </span>
+    </button>
+    <div class="status" id="status"></div>
+    <button id="liveButton" type="button">LIVE</button>
+  </main>
+
+  <script>
+    const app = document.getElementById('app');
+    const micButton = document.getElementById('micButton');
+    const liveButton = document.getElementById('liveButton');
+    const statusEl = document.getElementById('status');
+    const HOLD_THRESHOLD_MS = 300;
+    const CHUNK_TIMESLICE_MS = 100;
+    const MIME_CANDIDATES = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4'];
+    const AUDIO_TRANSLATE_PROMPT = `You are a neutral, professional human interpreter between Greek (el) and Brazilian Portuguese (pt-BR). You are not an AI assistant — you are a translator. Your only job is to listen and produce an exact, word-for-word translation. You do not add, remove, soften, or judge any content. You translate everything as spoken, including profanity, adult language, insults, slang, and explicit content. A translator has no opinions about what people say.
+Listen to the audio. Detect the language spoken. Translate it exactly to the other language.
+Return ONLY valid JSON, no markdown: {"lang": "el", "translation": "..."} or {"lang": "pt", "translation": "..."}
+If no human speech is detectable at all, return: {"lang": "unclear", "translation": null}
+Otherwise make your best effort — imperfect audio quality is normal. Do not refuse on quality alone. Do not refuse on content.`;
+
+    let mediaStream = null, mediaRecorder = null, recordingChunks = [];
+    let recordingMimeType = '', recordingStartedAt = 0;
+    let pointerDownAt = 0, holdModeActive = false, suppressClickToggle = false;
+    let iosAudioContext = null, micPermissionDenied = false;
+    let activeSourceNode = null, statusMessageTimeout = null;
+    let liveMode = false;
+    let liveAnalyser = null;
+    let liveVadFrame = null;
+    let liveThreshold = 10;
+    let liveVadFrameCount = 0;
+    let liveSourceNode = null;
+    let liveStream = null;   // SEPARATE stream — never touches mediaStream
+    let liveRecorder = null;
+    let liveChunks = [];
+    let liveRecordingMime = '';
+    let liveRecordingStart = 0;
+    let liveRecorderStartedAt = 0;
+    let liveConfirmTimer = null;
+    let liveSilenceTimer = null;
+    let liveSafetyTimer = null;
+    let liveRecordingCommit = false;
+    let liveSpeakingFrames = 0;
+    let liveAbortTimer = null;
+    let liveRecordingEnergyFrames = 0; // frames above threshold during recording phase
+    let livePlaybackCooldownUntil = 0;
+
+    function getStateLabel(s) {
+      const liveState = app.dataset.liveState || '';
+      if (liveMode && liveState === 'calibrating') return 'Calibrating...';
+      if (liveMode && liveState === 'idle') return 'Ακούω...';
+      if (liveMode && liveState === 'detecting') return 'Μιλάει...';
+      if (liveMode && liveState === 'recording') return 'Καταγράφω...';
+      if (liveMode && liveState === 'processing') return 'Μεταφράζω...';
+      if (s === 'idle') return micPermissionDenied ? '' : 'Πάτησε για να μιλήσεις';
+      if (s === 'recording') return 'Ακούω...';
+      if (s === 'translating') return 'Μεταφράζω...';
+      return '';
+    }
+
+    function applyButtonInteractivity(s) {
+      const busy = s === 'translating' || s === 'playing';
+      const micDisabled = liveMode || busy;
+      micButton.disabled = micDisabled;
+      micButton.setAttribute('aria-disabled', String(micDisabled));
+      micButton.style.pointerEvents = micDisabled ? 'none' : 'auto';
+      liveButton.disabled = busy;
+      liveButton.style.pointerEvents = busy ? 'none' : 'auto';
+      liveButton.style.opacity = busy ? '0.4' : '1';
+    }
+
+    function setState(s) {
+      app.dataset.state = s;
+      app.className = `app state-${s}`;
+      if (liveMode) {
+        app.classList.add('live-active', `live-${app.dataset.liveState || 'idle'}`);
+      }
+      applyButtonInteractivity(s);
+      if (!statusEl.dataset.overrideMessage) statusEl.textContent = getStateLabel(s);
+    }
+
+    function clearStatusMessage() {
+      statusEl.dataset.overrideMessage = '';
+      statusEl.textContent = getStateLabel(app.dataset.state || 'idle');
+    }
+
+    function updateLiveStatus(nextLiveState = app.dataset.liveState || 'idle') {
+      app.dataset.liveState = nextLiveState;
+      app.classList.remove('live-calibrating', 'live-idle', 'live-detecting', 'live-recording', 'live-processing');
+      if (liveMode) {
+        app.classList.add('live-active', `live-${nextLiveState}`);
+      } else {
+        app.classList.remove('live-active');
+      }
+      if (!statusEl.dataset.overrideMessage) {
+        const newText = getStateLabel(app.dataset.state || 'idle');
+        if (statusEl.textContent !== newText) statusEl.textContent = newText; // dedup — prevent aria-live spam
+      }
+      applyButtonInteractivity(app.dataset.state || 'idle');
+    }
+
+    async function ensureStream() {
+      if (mediaStream) return mediaStream;
+      await primeIosAudio();
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      return mediaStream;
+    }
+
+    function stopLiveRecorder(discard = false) {
+      // Energy gate: if recording had < 15 frames of real energy (~250ms speech), discard it
+      liveRecordingCommit = !discard;
+      clearTimeout(liveConfirmTimer); liveConfirmTimer = null;
+      clearTimeout(liveSilenceTimer); liveSilenceTimer = null;
+      clearTimeout(liveSafetyTimer); liveSafetyTimer = null;
+      if (liveRecorder && liveRecorder.state === 'recording') {
+        liveRecorder.stop();
+      } else if (!discard) {
+        updateLiveStatus('idle');
+      }
+    }
+
+    function startLiveRecorder() {
+      if (!liveStream) return;
+      if (liveRecorder && liveRecorder.state !== 'inactive') {
+        console.warn('[live] recorder start skipped; previous still active', { state: liveRecorder.state });
+        return;
+      }
+      liveChunks = [];
+      liveRecordingMime = getSupportedMimeType();
+      liveRecorder = liveRecordingMime
+        ? new MediaRecorder(liveStream, { mimeType: liveRecordingMime })
+        : new MediaRecorder(liveStream);
+      liveRecordingMime = liveRecorder.mimeType || liveRecordingMime || 'audio/webm';
+      liveRecorderStartedAt = 0;
+      liveRecorder.onstart = () => { liveRecorderStartedAt = Date.now(); };
+      liveRecorder.ondataavailable = e => { if (e.data?.size > 0) liveChunks.push(e.data); };
+      liveRecorder.onstop = () => {
+        const dur = Date.now() - (liveRecorderStartedAt || liveRecordingStart);
+        const blob = new Blob(liveChunks, { type: liveRecordingMime });
+        liveChunks = [];
+        if (liveRecordingCommit && blob.size > 0) {
+          console.log('[live] blob ready', { size: blob.size, dur });
+          updateLiveStatus('processing');
+          const cb = window.translatorGame.onLiveRecordingComplete;
+          if (typeof cb === 'function') cb(blob, liveRecordingMime);
+          else updateLiveStatus('idle');
+        } else {
+          console.log('[live] discarded', { dur, size: blob.size });
+          updateLiveStatus('idle');
+        }
+      };
+      liveRecordingStart = Date.now();
+      liveRecordingCommit = false;
+      liveRecordingEnergyFrames = 0;
+      liveRecorder.start(100);
+      liveSafetyTimer = setTimeout(() => {
+        console.log('[live] safety cap hit (15s)');
+        stopLiveRecorder(false);
+      }, 15000);
+    }
+
+    function stopLiveVAD() {
+      stopLiveRecorder(true);
+      if (liveVadFrame) { cancelAnimationFrame(liveVadFrame); liveVadFrame = null; }
+      if (liveSourceNode) {
+        try { liveSourceNode.disconnect(); } catch (_) {}
+        liveSourceNode = null;
+      }
+      if (liveAnalyser) {
+        try { liveAnalyser.disconnect(); } catch (_) {}
+        liveAnalyser = null;
+      }
+      if (liveAbortTimer) { clearTimeout(liveAbortTimer); liveAbortTimer = null; }
+      if (liveStream) { liveStream.getTracks().forEach(t => t.stop()); liveStream = null; }
+      liveVadFrameCount = 0;
+      liveSpeakingFrames = 0;
+      liveRecorderStartedAt = 0;
+      livePlaybackCooldownUntil = 0;
+    }
+
+    function startLiveVAD(buf) {
+      if (!liveAnalyser || !liveMode) return;
+      liveVadFrameCount = 0;
+      liveSpeakingFrames = 0;
+      const SPEECH_CONFIRMED_MS = 1000;
+      const SILENCE_END_MS = 3000;
+      const ONSET_FRAMES = 6;     // ~100ms @ 60fps — filters claps/snaps, real speech always reaches this
+      const ABORT_GRACE_MS = 700; // 700ms: clap aborts before SPEECH_CONFIRMED (1000ms), real speech passes
+
+      function tick() {
+        if (!liveMode) return;
+        if (Date.now() < livePlaybackCooldownUntil) {
+          liveSpeakingFrames = 0;
+          liveVadFrame = requestAnimationFrame(tick);
+          return;
+        }
+        liveAnalyser.getByteFrequencyData(buf);
+        const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
+        liveVadFrameCount++;
+        if (liveVadFrameCount % 30 === 0) {
+          console.log('[live-vad]', { rms: rms.toFixed(2), threshold: liveThreshold.toFixed(2), state: app.dataset.liveState, frames: liveSpeakingFrames });
+        }
+
+        // Hysteresis: smooth out single-frame noise
+        if (rms > liveThreshold) liveSpeakingFrames = Math.min(liveSpeakingFrames + 1, 20);
+        else liveSpeakingFrames = Math.max(liveSpeakingFrames - 2, 0); // decay faster than rise
+
+        const definitelySpeaking = liveSpeakingFrames >= ONSET_FRAMES;
+        const definitelySilent   = liveSpeakingFrames === 0;
+        const ls = app.dataset.liveState;
+
+
+
+        // ONSET → need N consecutive frames above threshold
+        if (definitelySpeaking && ls === 'idle') {
+          updateLiveStatus('detecting');
+          startLiveRecorder();
+          liveConfirmTimer = setTimeout(() => {
+            if (app.dataset.liveState === 'detecting') {
+              console.log('[live] speech confirmed, recording');
+              updateLiveStatus('recording');
+            }
+          }, SPEECH_CONFIRMED_MS);
+        }
+
+        // ABORT during detecting: require sustained silence, not single frame
+        if (definitelySilent && ls === 'detecting' && !liveAbortTimer) {
+          liveAbortTimer = setTimeout(() => {
+            liveAbortTimer = null;
+            if (app.dataset.liveState === 'detecting') {
+              clearTimeout(liveConfirmTimer); liveConfirmTimer = null;
+              stopLiveRecorder(true);
+              updateLiveStatus('idle');
+              console.log('[live] aborted — speech too short');
+            }
+          }, ABORT_GRACE_MS);
+        }
+        // Cancel abort if speech resumes
+        if (definitelySpeaking && ls === 'detecting' && liveAbortTimer) {
+          clearTimeout(liveAbortTimer); liveAbortTimer = null;
+        }
+
+        // Count energy frames during recording for impulse filter
+        if (ls === 'recording' && definitelySpeaking) liveRecordingEnergyFrames++;
+
+        // SILENCE END during recording
+        if (definitelySilent && ls === 'recording' && !liveSilenceTimer) {
+          liveSilenceTimer = setTimeout(() => {
+            console.log('[live] silence end → stop');
+            stopLiveRecorder(false);
+          }, SILENCE_END_MS);
+        }
+        // Speech resumes during recording → cancel silence timer
+        if (definitelySpeaking && ls === 'recording' && liveSilenceTimer) {
+          clearTimeout(liveSilenceTimer); liveSilenceTimer = null;
+        }
+
+        liveVadFrame = requestAnimationFrame(tick);
+      }
+      liveVadFrame = requestAnimationFrame(tick);
+    }
+
+    async function calibrateAndStartVAD() {
+      updateLiveStatus('calibrating');
+      let sampleInterval = null;
+      try {
+        const ctx = await primeIosAudio();
+        if (!ctx) throw new Error('no AudioContext');
+        liveStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        liveAnalyser = ctx.createAnalyser();
+        liveAnalyser.fftSize = 512;
+        liveSourceNode = ctx.createMediaStreamSource(liveStream);
+        liveSourceNode.connect(liveAnalyser);
+        const buf = new Uint8Array(liveAnalyser.frequencyBinCount);
+
+        const samples = [];
+        sampleInterval = setInterval(() => {
+          if (!liveMode || !liveAnalyser) { clearInterval(sampleInterval); return; }
+          liveAnalyser.getByteFrequencyData(buf);
+          const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
+          samples.push(rms);
+          if (samples.length >= 30) {
+            clearInterval(sampleInterval);
+            const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+            liveThreshold = Math.max(5, avg * 2.5);
+            console.log('[live-vad] calibrated', { ambientRms: avg.toFixed(2), threshold: liveThreshold.toFixed(2) });
+            updateLiveStatus('idle');
+            startLiveVAD(buf);
+          }
+        }, 50);
+      } catch (e) {
+        if (sampleInterval) clearInterval(sampleInterval);
+        console.error('[live] calibration failed', e);
+        stopLiveVAD();
+        liveMode = false;
+        app.dataset.liveState = '';
+        updateLiveStatus('');
+        setState('idle');
+        setStatusMessage(String(e.message || e).slice(0, 80), 3000);
+      }
+    }
+
+    function toggleLiveMode() {
+      liveMode = !liveMode;
+      if (liveMode) {
+        updateLiveStatus('idle');
+        calibrateAndStartVAD();
+      } else {
+        stopLiveVAD();
+        app.dataset.liveState = '';
+        updateLiveStatus('');
+        setState('idle');
+      }
+    }
+
+    function setStatusMessage(message = '', autoClearMs = 0) {
+      if (statusMessageTimeout) { clearTimeout(statusMessageTimeout); statusMessageTimeout = null; }
+      if (!message) { clearStatusMessage(); return; }
+      statusEl.dataset.overrideMessage = message;
+      statusEl.textContent = message;
+      if (autoClearMs > 0) {
+        statusMessageTimeout = setTimeout(() => { statusMessageTimeout = null; clearStatusMessage(); }, autoClearMs);
+      }
+    }
+
+    function getApiKey() {
+      let k = window.OPENAI_API_KEY || localStorage.getItem('tg_api_key');
+      if (!k) { k = prompt('OpenAI API Key:'); if (k) { localStorage.setItem('tg_api_key', k); window.OPENAI_API_KEY = k; } }
+      return k;
+    }
+
+    function getSupportedMimeType() {
+      if (!window.MediaRecorder) return '';
+      return MIME_CANDIDATES.find(t => MediaRecorder.isTypeSupported(t)) || '';
+    }
+
+    function getVoiceRoute(src) {
+      return src === 'el'
+        ? { voice: 'onyx',   instructions: 'Speak in a warm, gentle, pleasant Brazilian Portuguese tone. Sound relaxed, calm and kind — like a friendly person with a soft manner.' }
+        : { voice: 'shimmer', instructions: 'Speak in a strict, firm, authoritative Greek tone. Clear and direct — no warmth, just precision.' };
+    }
+
+    async function primeIosAudio() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!iosAudioContext) iosAudioContext = new AC();
+      if (iosAudioContext.state === 'suspended') await iosAudioContext.resume();
+      return iosAudioContext;
+    }
+
+    async function ensureRecorder() {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('no getUserMedia');
+      await primeIosAudio();
+      if (!mediaStream) {
+        try { mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+        catch (e) { micPermissionDenied = true; setState('idle'); setStatusMessage('Δεν επιτράπηκε πρόσβαση στο μικρόφωνο', 3000); throw e; }
+      }
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        recordingMimeType = getSupportedMimeType();
+        mediaRecorder = recordingMimeType ? new MediaRecorder(mediaStream, { mimeType: recordingMimeType }) : new MediaRecorder(mediaStream);
+        recordingMimeType = mediaRecorder.mimeType || recordingMimeType || 'audio/webm';
+        mediaRecorder.ondataavailable = e => { if (e.data?.size > 0) recordingChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          const dur = Date.now() - recordingStartedAt;
+          const blob = new Blob(recordingChunks, { type: recordingMimeType });
+          recordingChunks = [];
+          if (dur < HOLD_THRESHOLD_MS || blob.size === 0) { setState('idle'); return; }
+          setState('translating');
+          const cb = window.translatorGame.onRecordingComplete;
+          if (typeof cb === 'function') cb(blob, recordingMimeType);
+        };
+      }
+      return mediaRecorder;
+    }
+
+    async function startRecording(src = 'tap') {
+      if (app.dataset.state === 'recording') return;
+      try {
+        await ensureRecorder();
+        micPermissionDenied = false; setStatusMessage('');
+        recordingChunks = []; recordingStartedAt = Date.now();
+        mediaRecorder.start(CHUNK_TIMESLICE_MS);
+        setState('recording');
+      } catch(e) { console.error('[tg] start failed', e); setState('idle'); setStatusMessage(String(e.message || e).slice(0, 80), 5000); }
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+      mediaRecorder.stop();
+    }
+
+    async function toggleRecording() {
+      if (app.dataset.state === 'recording') stopRecording();
+      else if (app.dataset.state === 'idle') await startRecording();
+    }
+
+    function encodeWav(audioBuf) {
+      const ch = audioBuf.getChannelData(0);
+      const sr = audioBuf.sampleRate;
+      const ab = new ArrayBuffer(44 + ch.length * 2);
+      const v = new DataView(ab);
+      const s = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+      s(0,'RIFF'); v.setUint32(4, 36 + ch.length*2, true); s(8,'WAVE');
+      s(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+      v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+      s(36,'data'); v.setUint32(40, ch.length*2, true);
+      let o = 44;
+      for (let i = 0; i < ch.length; i++) {
+        const x = Math.max(-1, Math.min(1, ch[i]));
+        v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7FFF, true); o += 2;
+      }
+      return ab;
+    }
+
+    function ab2b64(buf) {
+      const bytes = new Uint8Array(buf); let s = '';
+      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      return btoa(s);
+    }
+
+    function looksMostlyGreek(text) {
+      const letters = Array.from(text || '').filter(ch => /\p{Letter}/u.test(ch));
+      if (!letters.length) return false;
+      const greekCount = letters.filter(ch => /\p{Script=Greek}/u.test(ch)).length;
+      return greekCount / letters.length >= 0.6;
+    }
+
+    async function audioToTranslation(blob, mimeType, apiKey) {
+      // Always convert to WAV — guaranteed format support across all API models
+      const ctx = await primeIosAudio();
+      if (!ctx || ctx.state === 'closed') throw new Error('audio unavailable');
+      const arrayBuf = await blob.arrayBuffer();
+      let audioBuf;
+      try {
+        audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+      } catch (e) {
+        console.error('[tg] decode failed', e);
+        throw new Error('audio decode failed');
+      }
+
+      // Silence guard — abort if audio is essentially empty
+      const samples = audioBuf.getChannelData(0);
+      let sumSq = 0;
+      for (let i = 0; i < samples.length; i++) sumSq += samples[i] * samples[i];
+      const rms = Math.sqrt(sumSq / samples.length);
+      if (rms < 0.005) throw new Error('too quiet');
+
+      const wavBuf = encodeWav(audioBuf);
+      const base64 = ab2b64(wavBuf);
+
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-audio-preview',
+          modalities: ['text'],
+          messages: [
+            { role: 'system', content: AUDIO_TRANSLATE_PROMPT },
+            { role: 'user', content: [{ type: 'input_audio', input_audio: { data: base64, format: 'wav' } }] }
+          ],
+          max_tokens: 300,
+          temperature: 0.2
+        })
+      });
+      if (!r.ok) {
+        const errText = await r.text();
+        console.error('[tg] api error', r.status, errText);
+        throw new Error(`api ${r.status}`);
+      }
+      const d = await r.json();
+      const raw = (d.choices?.[0]?.message?.content || '{}').replace(/```json|```/g, '').trim();
+      let parsed;
+      try { parsed = JSON.parse(raw || '{}'); } catch(e) { parsed = {}; }
+      if (parsed.lang === 'unclear' || !parsed.translation) return { lang: 'unclear', translation: null };
+      const lang = parsed.lang === 'el' ? 'el' : 'pt';
+      const translation = String(parsed.translation).trim();
+      if (!translation) return { lang: 'unclear', translation: null };
+      // el→pt sanity: if output is still Greek, model failed
+      if (lang === 'el' && looksMostlyGreek(translation)) return { lang: 'unclear', translation: null };
+      // pt→el sanity: if output is NOT Greek, model failed (shimmer would speak Portuguese)
+      if (lang === 'pt' && !looksMostlyGreek(translation)) return { lang: 'unclear', translation: null };
+      return { lang, translation };
+    }
+
+    async function speakText(text, srcLang, apiKey, overrideRoute = null) {
+      const { voice, instructions } = overrideRoute || getVoiceRoute(srcLang);
+      const ctx = await primeIosAudio();
+      if (!ctx) throw new Error('no AudioContext');
+      const r = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice, input: text, instructions, response_format: 'mp3', speed: 1.0 })
+      });
+      if (!r.ok) throw new Error(`TTS ${r.status}`);
+      const buf = await r.arrayBuffer();
+      let decoded;
+      try { decoded = await ctx.decodeAudioData(buf.slice(0)); } catch(e) { throw new Error('tts decode failed'); }
+      const src = ctx.createBufferSource();
+      src.buffer = decoded; src.connect(ctx.destination); activeSourceNode = src;
+      await new Promise(res => { src.onended = () => { activeSourceNode = null; res(); }; src.start(0); });
+      return voice;
+    }
+
+    async function runPipeline(blob, mimeType) {
+      const apiKey = getApiKey();
+      if (!apiKey) { setState('idle'); setStatusMessage('Χρειάζεται OpenAI API key', 3000); return; }
+      try {
+        const t0 = performance.now();
+        const t1 = performance.now();
+        const { lang, translation } = await audioToTranslation(blob, mimeType, apiKey);
+        const translateMs = Math.round(performance.now() - t1);
+        if (lang === 'unclear' || !translation) {
+          setState('idle');
+          return;
+        }
+        setState('playing');
+        const t2 = performance.now();
+        const voice = await speakText(translation, lang, apiKey);
+        const ttsMs = Math.round(performance.now() - t2);
+        console.log('[tg]', { audio_translate_ms: translateMs, tts_ms: ttsMs, total_ms: Math.round(performance.now()-t0), lang, voice, translation });
+        setState('idle');
+      } catch(e) {
+        console.error('[tg] error', e);
+        if (activeSourceNode) { try { activeSourceNode.stop(); } catch(_){} activeSourceNode = null; }
+        const msg = e.message === 'too quiet' ? 'Δεν άκουσα τίποτα. Ξανά;' : String(e.message || e).slice(0, 80);
+        setState('idle'); setStatusMessage(msg, 3000);
+      }
+    }
+
+    micButton.addEventListener('pointerdown', async () => {
+      pointerDownAt = Date.now(); holdModeActive = false; suppressClickToggle = false;
+      if (app.dataset.state !== 'idle') return;
+      await primeIosAudio();
+      setTimeout(() => {
+        if (pointerDownAt && Date.now()-pointerDownAt >= HOLD_THRESHOLD_MS && app.dataset.state === 'idle') {
+          holdModeActive = true; suppressClickToggle = true; startRecording('hold');
+        }
+      }, HOLD_THRESHOLD_MS);
+    });
+
+    function handlePointerRelease() {
+      if (!pointerDownAt) return;
+      const held = Date.now() - pointerDownAt; pointerDownAt = 0;
+      if (holdModeActive) { holdModeActive = false; stopRecording(); }
+      else { suppressClickToggle = held >= HOLD_THRESHOLD_MS; }
+    }
+
+    micButton.addEventListener('pointerup', handlePointerRelease);
+    micButton.addEventListener('pointercancel', handlePointerRelease);
+    micButton.addEventListener('pointerleave', e => { if (e.buttons === 1) handlePointerRelease(); });
+    micButton.addEventListener('click', async () => {
+      if (suppressClickToggle) { suppressClickToggle = false; return; }
+      await toggleRecording();
+    });
+    liveButton.addEventListener('click', toggleLiveMode);
+
+
+
+    // --- Passcode gate ---
+    const PASSCODE = '123456789';
+
+    function showGate() {
+      const overlay = document.createElement('div');
+      overlay.id = 'gate';
+      Object.assign(overlay.style, { position:'fixed', inset:'0', background:'#0a0a0a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'16px', zIndex:'9999', fontFamily:'Inter, sans-serif' });
+      const input = document.createElement('input');
+      Object.assign(input, { type:'password', placeholder:'Κωδικός', maxLength:20 });
+      Object.assign(input.style, { background:'#141414', border:'1px solid #2a2a2a', borderRadius:'12px', color:'#f5f5f5', fontSize:'18px', padding:'12px 20px', outline:'none', textAlign:'center', width:'200px' });
+      const err = document.createElement('div');
+      Object.assign(err.style, { color:'#ef4444', fontSize:'14px', minHeight:'20px' });
+      overlay.appendChild(input); overlay.appendChild(err);
+      document.body.appendChild(overlay);
+      input.focus();
+      function check() {
+        if (input.value === PASSCODE) { localStorage.setItem('tg_unlocked','1'); overlay.remove(); setState('idle'); updateLiveStatus(); }
+        else { err.textContent = 'Λάθος κωδικός'; input.value = ''; input.focus(); }
+      }
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+    }
+
+    async function livePipelineCallback(blob, mimeType) {
+      const dur = Date.now() - (liveRecorderStartedAt || liveRecordingStart);
+      if (dur < 600) {
+        console.log('[live] too short, skipped', { dur });
+        if (liveMode) { liveSpeakingFrames = 0; updateLiveStatus('idle'); }
+        return;
+      }
+      // Block VAD re-entry immediately — prevents double pipeline during TTS playback
+      livePlaybackCooldownUntil = Date.now() + 60000;
+      try {
+        await runPipeline(blob, mimeType);
+      } finally {
+        if (liveMode) {
+          livePlaybackCooldownUntil = Date.now() + 2000;
+          await new Promise(r => setTimeout(r, 2000));
+          liveSpeakingFrames = 0;
+          if (liveAbortTimer) { clearTimeout(liveAbortTimer); liveAbortTimer = null; }
+          updateLiveStatus('idle');
+        }
+      }
+    }
+
+    if (localStorage.getItem('tg_unlocked') !== '1') { showGate(); }
+    else { setState('idle'); updateLiveStatus(); }
+
+    window.translatorGame = {
+      setState,
+      getState: () => app.dataset.state,
+      onRecordingComplete: runPipeline,
+      onLiveRecordingComplete: livePipelineCallback,
+      getAudioContext: () => iosAudioContext,
+      getApiKey
+    };
+  </script>
+</body>
+</html>

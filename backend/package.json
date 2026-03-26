@@ -1,0 +1,14 @@
+{
+  "name": "easy-live-translator-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vercel serverless proxy for Easy Live Translator",
+  "main": "api/translate.js",
+  "license": "UNLICENSED",
+  "scripts": {
+    "deploy:prod": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "openai": "^6.26.0"
+  }
+}
