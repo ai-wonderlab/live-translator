@@ -277,6 +277,20 @@ struct HomeView: View {
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(DS.border, lineWidth: 1))
     }
 
+    // MARK: Safe Area Heights
+
+    private var statusBarHeight: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.statusBarManager?.statusBarFrame.height ?? 54
+    }
+
+    private var homeIndicatorHeight: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.safeAreaInsets.bottom ?? 34
+    }
+
     // MARK: Full Screen Fix
 
     private func forceFullScreen() {
