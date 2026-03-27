@@ -11,6 +11,7 @@ final class TranslationEngine: ObservableObject {
     @Published var isProcessing = false
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
+    @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
 
     private let speechRecognizer = SpeechRecognizer()
@@ -96,6 +97,16 @@ final class TranslationEngine: ObservableObject {
             )
             translationText = response.translation
             credits.deductTranslation()
+            history.insert(
+                TranslationEntry(
+                    spokenText: recognized,
+                    translatedText: response.translation,
+                    sourceLanguage: sourceLanguage,
+                    targetLanguage: targetLanguage,
+                    date: Date()
+                ),
+                at: 0
+            )
             await speechSynthesizer.speak(response.translation, language: targetLanguage)
 
             let elapsed = Date().timeIntervalSince(startedAt)

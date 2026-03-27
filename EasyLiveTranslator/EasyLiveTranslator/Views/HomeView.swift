@@ -94,26 +94,8 @@ struct HomeView: View {
 
                 Spacer()
 
-                // Translation result — bottom
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Last translation")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.45))
-
-                    Text(lastTranslationText)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(engine.translationText.isEmpty ? 0.34 : 0.88))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(4)
-                }
-                .padding(20)
-                .background(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+                // Translation history — bottom
+                TranslationHistoryView(history: engine.history)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -209,9 +191,7 @@ struct HomeView: View {
         engine.errorMessage == nil ? .white.opacity(0.64) : .red.opacity(0.85)
     }
 
-    private var lastTranslationText: String {
-        engine.translationText.isEmpty ? "Your latest translation will appear here." : engine.translationText
-    }
+
 
     private func languageBadge(_ language: Language) -> some View {
         HStack(spacing: 10) {
@@ -362,6 +342,81 @@ private struct LanguagePickerSheet: View {
         return isSelected ? Color.white.opacity(0.12) : Color.white.opacity(0.05)
     }
 }
+
+private struct TranslationHistoryView: View {
+    let history: [TranslationEntry]
+
+    var body: some View {
+        Group {
+            if history.isEmpty {
+                VStack(spacing: 8) {
+                    Text("Your translations will appear here.")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.34))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, minHeight: 80)
+                .padding(20)
+                .background(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(history) { entry in
+                            TranslationEntryRow(entry: entry)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .frame(maxHeight: 240)
+                .background(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+            }
+        }
+    }
+}
+
+private struct TranslationEntryRow: View {
+    let entry: TranslationEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(entry.sourceLanguage.flag)
+                    .font(.system(size: 13))
+                Text(entry.spokenText)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 6) {
+                Text(entry.targetLanguage.flag)
+                    .font(.system(size: 15))
+                Text(entry.translatedText)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 8)
+    }
+}
+
 
 private struct CreditsPurchaseSheet: View {
     @ObservedObject var storeManager: StoreManager
