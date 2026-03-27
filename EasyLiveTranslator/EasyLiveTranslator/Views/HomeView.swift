@@ -96,8 +96,8 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .preferredColorScheme(.dark)
         .task {
             engine.langA = langA
             engine.langB = langB
@@ -467,7 +467,6 @@ struct LanguagePairSheet: View {
             }
         }
         .background(DS.bg)
-        .preferredColorScheme(.dark)
     }
 
     private func pairSlot(code: String, slot: Int) -> some View {
@@ -569,7 +568,6 @@ struct CreditsPurchaseSheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DS.bg.ignoresSafeArea())
-        .preferredColorScheme(.dark)
     }
 
     private var isPurchasing: Bool {

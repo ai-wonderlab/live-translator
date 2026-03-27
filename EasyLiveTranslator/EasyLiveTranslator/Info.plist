@@ -36,5 +36,7 @@
 	<true/>
 	<key>UIWindowSceneSessionRoleApplication</key>
 	<string>UIWindowSceneSessionRoleApplication</string>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 </dict>
 </plist>
