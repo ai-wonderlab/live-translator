@@ -66,14 +66,17 @@ struct HomeView: View {
     @StateObject private var engine = TranslationEngine()
     @ObservedObject private var credits = CreditManager.shared
     @StateObject private var storeManager = StoreManager()
-    @AppStorage("sourceLang") private var sourceLanguageCode = Language.greek.code
-    @AppStorage("targetLang") private var targetLanguageCode = Language.english.code
+    @AppStorage("langA") private var langACode = Language.greek.code
+    @AppStorage("langB") private var langBCode = Language.english.code
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
-    @State private var showingLanguageSheet = false
-    @State private var showingCreditsSheet  = false
+    @State private var showingPairSheet  = false
+    @State private var showingCreditsSheet = false
     @State private var showOnboarding = false
     @GestureState private var isPressingMic = false
+
+    private var langA: Language { Language(code: langACode) ?? .greek }
+    private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
         ZStack {
@@ -98,17 +101,18 @@ struct HomeView: View {
         }
         .preferredColorScheme(.dark)
         .task {
-            engine.sourceLanguage = sourceLanguage
-            engine.targetLanguage = targetLanguage
+            engine.langA = langA
+            engine.langB = langB
+            engine.activeSttLanguage = langA
             await engine.prepareForLaunch()
             await storeManager.loadProducts()
             if !hasSeenOnboarding { showOnboarding = true }
         }
-        .onChange(of: sourceLanguageCode) { _, _ in engine.sourceLanguage = sourceLanguage }
-        .onChange(of: targetLanguageCode) { _, _ in engine.targetLanguage = targetLanguage }
-        .sheet(isPresented: $showingLanguageSheet) {
-            LanguagePickerSheet(sourceLanguageCode: $sourceLanguageCode, targetLanguageCode: $targetLanguageCode)
-                .presentationDetents([.medium, .large])
+        .onChange(of: langACode) { _, _ in engine.langA = langA; engine.activeSttLanguage = langA }
+        .onChange(of: langBCode) { _, _ in engine.langB = langB }
+        .sheet(isPresented: $showingPairSheet) {
+            LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingCreditsSheet) {
@@ -142,37 +146,24 @@ struct HomeView: View {
     // MARK: Top bar
 
     private var topBar: some View {
-        Button { showingLanguageSheet = true } label: {
-            HStack(spacing: 12) {
-                // Auto-detect badge
-                HStack(spacing: 6) {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(DS.accent)
-                    Text("AUTO")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .tracking(1.4)
-                        .foregroundStyle(DS.accent)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(DS.accentSoft, in: Capsule())
-                .overlay(Capsule().strokeBorder(DS.accent.opacity(0.2), lineWidth: 1))
-
-                Image(systemName: "arrow.right")
+        Button { showingPairSheet = true } label: {
+            HStack(spacing: 10) {
+                Text(langA.flag).font(.system(size: 22))
+                Text(langA.displayName)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DS.textPrimary)
+                Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DS.accent)
+                    .padding(.horizontal, 4)
+                Text(langB.flag).font(.system(size: 22))
+                Text(langB.displayName)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DS.textPrimary)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11))
                     .foregroundStyle(DS.textTertiary)
-
-                // Target language
-                HStack(spacing: 8) {
-                    Text(targetLanguage.flag).font(.system(size: 22))
-                    Text(targetLanguage.displayName)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(DS.textPrimary)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(DS.textTertiary)
-                }
+                    .padding(.leading, 2)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 13)
@@ -285,9 +276,6 @@ struct HomeView: View {
     }
 
     // MARK: Helpers
-
-    private var sourceLanguage: Language { Language(code: sourceLanguageCode) ?? .greek   }
-    private var targetLanguage: Language { Language(code: targetLanguageCode) ?? .english }
 
     private var micState: MicState {
         if engine.isListening  { return .recording }
@@ -417,13 +405,14 @@ struct MicCapsule: View {
     }
 }
 
-// MARK: - Language Picker Sheet
+// MARK: - Language Pair Sheet
 
-struct LanguagePickerSheet: View {
+struct LanguagePairSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var sourceLanguageCode: String
-    @Binding var targetLanguageCode: String
+    @Binding var langACode: String
+    @Binding var langBCode: String
     @State private var search = ""
+    @State private var selecting: Int = 1  // 1 = picking A, 2 = picking B
 
     private var filtered: [Language] {
         search.isEmpty ? Language.allCases
@@ -432,37 +421,47 @@ struct LanguagePickerSheet: View {
 
     var body: some View {
         NavigationStack {
-            List(filtered) { lang in
-                Button { select(lang) } label: {
-                    HStack(spacing: 14) {
-                        Text(lang.flag).font(.system(size: 28))
-                        VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 0) {
+                // Pair preview
+                HStack(spacing: 0) {
+                    pairSlot(code: langACode, slot: 1)
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.accent)
+                        .frame(width: 44)
+                    pairSlot(code: langBCode, slot: 2)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+
+                Divider().background(DS.border)
+
+                List(filtered) { lang in
+                    Button { select(lang) } label: {
+                        HStack(spacing: 14) {
+                            Text(lang.flag).font(.system(size: 26))
                             Text(lang.displayName)
                                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                                 .foregroundStyle(DS.textPrimary)
-                            Text(lang.localeIdentifier)
-                                .font(.system(size: 12, design: .rounded))
-                                .foregroundStyle(DS.textTertiary)
+                            Spacer()
+                            if langACode == lang.code { dot(DS.accent) }
+                            if langBCode == lang.code { dot(DS.speaking) }
                         }
-                        Spacer()
-                        if sourceLanguageCode == lang.code { badgeView("FROM", DS.accent) }
-                        else if targetLanguageCode == lang.code { badgeView("TO", DS.speaking) }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(langACode == lang.code || langBCode == lang.code ? DS.accentSoft : DS.surface)
+                            .padding(.vertical, 2)
+                    )
                 }
-                .buttonStyle(.plain)
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(sourceLanguageCode == lang.code || targetLanguageCode == lang.code
-                              ? DS.accentSoft : DS.surface)
-                        .padding(.vertical, 2)
-                )
+                .listStyle(.plain)
+                .background(DS.bg)
+                .scrollContentBackground(.hidden)
+                .searchable(text: $search, prompt: "Search language")
             }
-            .listStyle(.plain)
-            .background(DS.bg)
-            .scrollContentBackground(.hidden)
-            .searchable(text: $search, prompt: "Search")
-            .navigationTitle("Languages")
+            .navigationTitle("Language Pair")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -470,26 +469,47 @@ struct LanguagePickerSheet: View {
                 }
             }
         }
+        .background(DS.bg)
         .preferredColorScheme(.dark)
     }
 
-    private func badgeView(_ text: String, _ color: Color) -> some View {
-        Text(text)
-            .font(.system(size: 9, weight: .bold, design: .rounded))
-            .tracking(1.2)
-            .foregroundStyle(color)
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(color.opacity(0.15), in: Capsule())
+    private func pairSlot(code: String, slot: Int) -> some View {
+        let lang = Language(code: code) ?? .greek
+        return Button { selecting = slot } label: {
+            VStack(spacing: 4) {
+                Text(lang.flag).font(.system(size: 28))
+                Text(lang.displayName)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DS.textPrimary)
+                Text(selecting == slot ? "← tap list" : "tap to change")
+                    .font(.system(size: 10, design: .rounded))
+                    .foregroundStyle(selecting == slot ? DS.accent : DS.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(selecting == slot ? DS.accentSoft : DS.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selecting == slot ? DS.accent.opacity(0.3) : DS.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func dot(_ color: Color) -> some View {
+        Circle().fill(color).frame(width: 8, height: 8)
     }
 
     private func select(_ lang: Language) {
-        if sourceLanguageCode == lang.code {
-            targetLanguageCode = lang.code == Language.english.code ? Language.greek.code : Language.english.code
-            return
-        }
-        sourceLanguageCode = lang.code
-        if targetLanguageCode == lang.code {
-            targetLanguageCode = sourceLanguageCode == Language.english.code ? Language.greek.code : Language.english.code
+        if selecting == 1 {
+            langACode = lang.code
+            if langBCode == lang.code {
+                langBCode = lang.code == Language.english.code ? Language.greek.code : Language.english.code
+            }
+            selecting = 2
+        } else {
+            langBCode = lang.code
+            if langACode == lang.code {
+                langACode = lang.code == Language.greek.code ? Language.english.code : Language.greek.code
+            }
+            selecting = 1
         }
     }
 }
