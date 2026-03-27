@@ -72,12 +72,16 @@ struct HomeView: View {
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .updating($isPressingMic) { _, state, _ in
+                                    if !state {
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    }
                                     state = true
                                 }
                                 .onChanged { _ in
                                     engine.beginHoldIfNeeded()
                                 }
                                 .onEnded { _ in
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     Task {
                                         await engine.endHold()
                                     }
