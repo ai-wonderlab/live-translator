@@ -80,11 +80,8 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            // Background fills edge-to-edge including under status bar & home indicator
-            DS.bg.ignoresSafeArea(.all)
-            ambientBackground.ignoresSafeArea(.all)
-
-            // Content stays within safe area naturally
+            DS.bg
+            ambientBackground
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
@@ -100,6 +97,8 @@ struct HomeView: View {
                     .padding(.bottom, 16)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
         .preferredColorScheme(.dark)
         .task {
             engine.langA = langA
