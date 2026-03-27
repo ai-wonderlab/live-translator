@@ -316,6 +316,24 @@ private struct LanguagePickerSheet: View {
                                 }
 
                                 Spacer(minLength: 0)
+
+                                if sourceLanguageCode == language.code {
+                                    Text("FROM")
+                                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.blue.opacity(0.7))
+                                        .clipShape(Capsule())
+                                } else if targetLanguageCode == language.code {
+                                    Text("TO")
+                                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.green.opacity(0.6))
+                                        .clipShape(Capsule())
+                                }
                             }
                             .padding(14)
                             .background(cellBackground(for: language))
