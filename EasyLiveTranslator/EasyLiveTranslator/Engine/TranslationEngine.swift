@@ -7,6 +7,7 @@ final class TranslationEngine: ObservableObject {
     @Published var targetLanguage: Language = .english
     @Published var transcript = ""
     @Published var translationText = ""
+    @Published var detectedLanguage: Language? = nil
     @Published var isListening = false
     @Published var isProcessing = false
     @Published var isPreparingPermissions = false
@@ -58,6 +59,7 @@ final class TranslationEngine: ObservableObject {
         (sourceLanguage, targetLanguage) = (targetLanguage, sourceLanguage)
         transcript = ""
         translationText = ""
+        detectedLanguage = nil
         errorMessage = nil
     }
 
@@ -102,8 +104,9 @@ final class TranslationEngine: ObservableObject {
                 targetLanguage: targetLanguage
             )
             translationText = response.translation
-            // If backend detected the opposite language, silently swap source/target
-            if let detectedLanguage = Language(code: response.detected),
+            detectedLanguage = Language(code: response.detected ?? "")
+            // Auto-detect mode — no swap needed
+            if false, let detectedLanguage = Language(code: response.detected ?? ""),
                detectedLanguage != sourceLanguage {
                 (sourceLanguage, targetLanguage) = (targetLanguage, sourceLanguage)
             }

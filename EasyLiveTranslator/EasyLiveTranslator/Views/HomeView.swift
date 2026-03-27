@@ -189,6 +189,21 @@ struct HomeView: View {
             WireSphere(state: micState)
                 .frame(width: 165, height: 165)
 
+            // Detected language badge
+            if let detected = engine.detectedLanguage {
+                HStack(spacing: 6) {
+                    Text(detected.flag).font(.system(size: 13))
+                    Text(detected.displayName + " detected")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .tracking(0.5)
+                        .foregroundStyle(DS.accent)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(DS.accentSoft, in: Capsule())
+                .overlay(Capsule().strokeBorder(DS.accent.opacity(0.2), lineWidth: 1))
+                .transition(.scale.combined(with: .opacity))
+            }
+
             Text(statusLine)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(engine.errorMessage == nil ? DS.textSecondary : DS.recording)
