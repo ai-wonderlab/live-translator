@@ -13,6 +13,7 @@ final class TranslationEngine: ObservableObject {
     @Published var errorMessage: String?
     private var lastTranslationAt: Date = .distantPast
     private static let translationCooldown: TimeInterval = 2.0
+    @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
 
     private let speechRecognizer = SpeechRecognizer()
@@ -105,6 +106,16 @@ final class TranslationEngine: ObservableObject {
             }
             credits.deductTranslation()
             lastTranslationAt = Date()
+            history.insert(
+                TranslationEntry(
+                    spokenText: recognized,
+                    translatedText: response.translation,
+                    sourceLanguage: sourceLanguage,
+                    targetLanguage: targetLanguage,
+                    date: Date()
+                ),
+                at: 0
+            )
             await speechSynthesizer.speak(response.translation, language: targetLanguage)
 
             let elapsed = Date().timeIntervalSince(startedAt)
