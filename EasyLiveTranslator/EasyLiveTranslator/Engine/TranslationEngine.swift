@@ -95,6 +95,11 @@ final class TranslationEngine: ObservableObject {
                 targetLanguage: targetLanguage
             )
             translationText = response.translation
+            // If backend detected the opposite language, silently swap source/target
+            if let detectedLanguage = Language(code: response.detected),
+               detectedLanguage != sourceLanguage {
+                (sourceLanguage, targetLanguage) = (targetLanguage, sourceLanguage)
+            }
             credits.deductTranslation()
             await speechSynthesizer.speak(response.translation, language: targetLanguage)
 
