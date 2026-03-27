@@ -79,25 +79,26 @@ struct HomeView: View {
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
-        ZStack {
-            DS.bg
-            ambientBackground
-            VStack(spacing: 0) {
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                Spacer(minLength: 12)
-                sphereSection
-                Spacer(minLength: 12)
-                translationCard
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                creditsRow
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+        GeometryReader { geo in
+            ZStack {
+                DS.bg
+                ambientBackground
+                VStack(spacing: 0) {
+                    topBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, geo.safeAreaInsets.top + 8)
+                    Spacer(minLength: 12)
+                    sphereSection
+                    Spacer(minLength: 12)
+                    translationCard
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 8)
+                    creditsRow
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, geo.safeAreaInsets.bottom + 8)
+                }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
         .task {

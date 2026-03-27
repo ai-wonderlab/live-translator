@@ -53,11 +53,16 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         let bgColor = UIColor(red: 0.030, green: 0.038, blue: 0.065, alpha: 1)
         let hosting = UIHostingController(rootView: HomeView())
         hosting.view.backgroundColor = bgColor
+        hosting.view.insetsLayoutMarginsFromSafeArea = false
 
         let window = UIWindow(windowScene: windowScene)
         window.backgroundColor = bgColor
         window.rootViewController = hosting
         window.makeKeyAndVisible()
+
+        // Force frame to fill entire screen
+        hosting.view.frame = window.bounds
+        hosting.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         self.window = window
     }
 }
