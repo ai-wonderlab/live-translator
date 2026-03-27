@@ -21,29 +21,45 @@ struct HomeView: View {
 
             VStack(spacing: 20) {
                 // Language picker — top
-                Button {
-                    showingLanguageSheet = true
-                } label: {
-                    HStack(spacing: 14) {
+                HStack(spacing: 14) {
+                    Button {
+                        showingLanguageSheet = true
+                    } label: {
                         languageBadge(sourceLanguage)
+                    }
+                    .buttonStyle(.plain)
 
+                    Button {
+                        engine.swapLanguages()
+                        sourceLanguageCode = engine.sourceLanguage.code
+                        targetLanguageCode = engine.targetLanguage.code
+                    } label: {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.75))
+                            .padding(10)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(engine.isListening || engine.isProcessing)
 
+                    Button {
+                        showingLanguageSheet = true
+                    } label: {
                         languageBadge(targetLanguage)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 16)
-                    .background(Color.white.opacity(0.06))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24))
 
                 Spacer()
 
