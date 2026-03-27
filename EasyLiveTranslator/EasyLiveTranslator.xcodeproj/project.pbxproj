@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -19,6 +19,8 @@
 		A0000000000000000000000A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* HomeView.swift */; };
 		A0000000000000000000000B /* MicButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* MicButton.swift */; };
 		A0000000000000000000000C /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001E /* StoreManager.swift */; };
+		BB4688A61B4AB647E6B6B90D /* TranslationEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */; };
+		DD288879659C7046CAA0B196 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +39,8 @@
 		A0000000000000000000001C /* MicButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicButton.swift; sourceTree = "<group>"; };
 		A0000000000000000000001D /* EasyLiveTranslator.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasyLiveTranslator.entitlements; sourceTree = "<group>"; };
 		A0000000000000000000001E /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationEntry.swift; sourceTree = "<group>"; };
+		CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +110,7 @@
 			children = (
 				A00000000000000000000018 /* Language.swift */,
 				A00000000000000000000019 /* TranslationResult.swift */,
+				AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -114,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				A0000000000000000000001B /* HomeView.swift */,
+				CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */,
 				A0000000000000000000001C /* MicButton.swift */,
 			);
 			path = Views;
@@ -196,7 +202,9 @@
 				A00000000000000000000007 /* CreditManager.swift in Sources */,
 				A00000000000000000000008 /* Language.swift in Sources */,
 				A00000000000000000000009 /* TranslationResult.swift in Sources */,
+				BB4688A61B4AB647E6B6B90D /* TranslationEntry.swift in Sources */,
 				A0000000000000000000000A /* HomeView.swift in Sources */,
+				DD288879659C7046CAA0B196 /* OnboardingView.swift in Sources */,
 				A0000000000000000000000B /* MicButton.swift in Sources */,
 				A0000000000000000000000C /* StoreManager.swift in Sources */,
 			);
@@ -211,11 +219,11 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = EasyLiveTranslator/EasyLiveTranslator.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = VKS7898WXK;
 				ENABLE_PREVIEWS = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -243,11 +251,11 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = EasyLiveTranslator/EasyLiveTranslator.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = VKS7898WXK;
 				ENABLE_PREVIEWS = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = NO;
