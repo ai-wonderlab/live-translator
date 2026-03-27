@@ -75,6 +75,7 @@ struct HomeView: View {
     @State private var showingCreditsSheet = false
     @State private var showOnboarding = false
     @State private var showPaywall = false
+    @State private var showProfile = false
     @ObservedObject private var auth = AuthManager.shared
     @GestureState private var isPressingMic = false
 
@@ -124,6 +125,11 @@ struct HomeView: View {
         .sheet(isPresented: $showingCreditsSheet) {
             CreditsPurchaseSheet(storeManager: storeManager, credits: credits)
                 .presentationDetents([.fraction(0.48), .medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showProfile) {
+            ProfileSheet(showPaywall: $showPaywall)
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPaywall) {
@@ -287,13 +293,20 @@ struct HomeView: View {
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(DS.textSecondary)
             Spacer()
-            Button { showingCreditsSheet = true } label: {
+            Button { showProfile = true } label: {
                 Label("Add time", systemImage: "plus")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(DS.accent)
                     .padding(.horizontal, 14).padding(.vertical, 8)
                     .background(DS.accentSoft, in: Capsule())
                     .overlay(Capsule().strokeBorder(DS.accent.opacity(0.18), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            Button { showProfile = true } label: {
+                Image(systemName: auth.isSignedIn ? "person.circle.fill" : "person.circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(auth.isSignedIn ? DS.accent : DS.textSecondary)
             }
             .buttonStyle(.plain)
         }

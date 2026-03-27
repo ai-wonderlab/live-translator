@@ -224,6 +224,139 @@ struct PaywallSheet: View {
     }
 }
 
+
+// MARK: - ProfileSheet
+
+struct ProfileSheet: View {
+    @ObservedObject private var auth = AuthManager.shared
+    @ObservedObject private var credits = CreditManager.shared
+    @Environment(\.dismiss) private var dismiss
+    @Binding var showPaywall: Bool
+    @State private var showAuth = false
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.05, green: 0.05, blue: 0.10).ignoresSafeArea()
+            VStack(spacing: 0) {
+                Capsule().fill(Color.white.opacity(0.2))
+                    .frame(width: 40, height: 4).padding(.top, 12).padding(.bottom, 28)
+
+                if auth.isSignedIn {
+                    // Logged in state
+                    VStack(spacing: 20) {
+                        // Avatar
+                        ZStack {
+                            Circle().fill(Color(red: 0.20, green: 0.82, blue: 0.90).opacity(0.15))
+                                .frame(width: 72, height: 72)
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 30))
+                                .foregroundStyle(Color(red: 0.20, green: 0.82, blue: 0.90))
+                        }
+
+                        Text(auth.user?.email ?? "Account")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white)
+
+                        // Plan badge
+                        HStack(spacing: 6) {
+                            Circle().fill(credits.hasCredits ?
+                                Color(red: 0.20, green: 0.82, blue: 0.90) : .red)
+                                .frame(width: 8, height: 8)
+                            Text(credits.hasCredits ? "Active Plan" : "No Credits")
+                                .font(.system(size: 13, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 8)
+                        .background(Color.white.opacity(0.07), in: Capsule())
+
+                        // Credits remaining
+                        HStack {
+                            Image(systemName: "clock.fill")
+                                .foregroundStyle(Color(red: 0.20, green: 0.82, blue: 0.90))
+                            Text(credits.remainingMinutesText)
+                                .font(.system(size: 15, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.7))
+                            Spacer()
+                            Button {
+                                dismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    showPaywall = true
+                                }
+                            } label: {
+                                Text("Buy time")
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 14).padding(.vertical, 8)
+                                    .background(Color(red: 0.20, green: 0.82, blue: 0.90), in: Capsule())
+                            }
+                        }
+                        .padding(16)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 24)
+
+                        // Sign out
+                        Button {
+                            Task { await auth.signOut(); dismiss() }
+                        } label: {
+                            Text("Sign Out")
+                                .font(.system(size: 15, design: .rounded))
+                                .foregroundStyle(.red.opacity(0.8))
+                                .frame(maxWidth: .infinity).frame(height: 46)
+                                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                } else {
+                    // Not logged in
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(Color.white.opacity(0.07)).frame(width: 72, height: 72)
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 30)).foregroundStyle(.white.opacity(0.4))
+                        }
+
+                        Text("No account yet")
+                            .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                        Text("Create an account to buy more translation time\nand sync across devices.")
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                            .padding(.bottom, 12)
+
+                        // Credits remaining (free trial)
+                        HStack {
+                            Image(systemName: "gift.fill")
+                                .foregroundStyle(Color(red: 0.20, green: 0.82, blue: 0.90))
+                            Text(credits.remainingMinutesText)
+                                .font(.system(size: 14, design: .rounded)).foregroundStyle(.white.opacity(0.7))
+                            Spacer()
+                        }
+                        .padding(14)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 24)
+
+                        Button { showAuth = true } label: {
+                            Text("Create Account / Sign In")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.black)
+                                .frame(maxWidth: .infinity).frame(height: 50)
+                                .background(Color(red: 0.20, green: 0.82, blue: 0.90))
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                }
+
+                Spacer()
+            }
+        }
+        .sheet(isPresented: $showAuth) {
+            AuthSheet().presentationDetents([.large])
+        }
+    }
+}
+
 // MARK: - App Entry Point
 
 @main
