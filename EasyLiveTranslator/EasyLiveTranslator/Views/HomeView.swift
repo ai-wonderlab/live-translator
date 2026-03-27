@@ -82,7 +82,7 @@ struct HomeView: View {
         ZStack {
             // Background fills edge-to-edge including under status bar & home indicator
             DS.bg.ignoresSafeArea(.all)
-            ambientBackground
+            ambientBackground.ignoresSafeArea(.all)
 
             // Content stays within safe area naturally
             VStack(spacing: 0) {
