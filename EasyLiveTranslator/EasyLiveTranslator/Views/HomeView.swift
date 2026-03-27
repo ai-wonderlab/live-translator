@@ -81,8 +81,8 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            DS.bg.ignoresSafeArea()
-            ambientBackground.ignoresSafeArea()
+            DS.bg
+            ambientBackground
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
@@ -97,7 +97,9 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
             }
+            .safeAreaPadding()
         }
+        .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
             engine.langA = langA
