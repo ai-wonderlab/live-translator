@@ -73,6 +73,27 @@ final class StoreManager: ObservableObject {
         }
     }
 
+    func restorePurchases() async {
+        purchaseState = .loading
+        var restoredSeconds = 0
+
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result {
+                let seconds = Self.secondsPerProduct[transaction.productID] ?? 0
+                if seconds > 0 {
+                    restoredSeconds += seconds
+                }
+            }
+        }
+
+        if restoredSeconds > 0 {
+            CreditManager.shared.addSeconds(restoredSeconds)
+            purchaseState = .success("+\(restoredSeconds / 60) min restored")
+        } else {
+            purchaseState = .success("No purchases to restore.")
+        }
+    }
+
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .verified(let signedType):
