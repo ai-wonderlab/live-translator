@@ -65,7 +65,7 @@ struct HomeView: View {
 
                 // Mic section — center
                 VStack(spacing: 18) {
-                    WaveformRow(isAnimating: engine.isListening)
+                    WaveformRow(isAnimating: engine.isListening, audioLevel: engine.audioLevel)
 
                     MicButton(state: micState, isPressed: isPressingMic)
                         .contentShape(Circle())
@@ -218,26 +218,37 @@ struct HomeView: View {
 
 private struct WaveformRow: View {
     let isAnimating: Bool
+    let audioLevel: Float
 
-    // idle heights give a recognizable "audio bar" silhouette — not dots
-    private let idleHeights: [CGFloat] = [10, 16, 10]
-    private let activeHeights: [CGFloat] = [16, 28, 20]
+    // Per-bar multipliers give a natural asymmetric shape
+    private let barMultipliers: [Double] = [0.5, 0.7, 0.9, 1.0, 0.95, 0.75, 0.85, 0.65, 0.45]
+    private let barCount = 9
+    private let minHeight: CGFloat = 4
+    private let maxHeight: CGFloat = 36
+
+    private func height(for index: Int) -> CGFloat {
+        let multiplier = barMultipliers[index]
+        if isAnimating {
+            let level = Double(audioLevel)
+            // Boost low levels so there's always some movement when recording
+            let boosted = level < 0.05 ? 0.15 + level : level
+            let h = minHeight + CGFloat(boosted * multiplier) * (maxHeight - minHeight)
+            return max(minHeight, min(maxHeight, h))
+        }
+        return minHeight + CGFloat(multiplier) * 6
+    }
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<3, id: \.self) { index in
+        HStack(spacing: 4) {
+            ForEach(0..<barCount, id: \.self) { index in
                 Capsule()
-                    .fill(Color.white.opacity(isAnimating ? 0.85 : 0.25))
-                    .frame(width: 4, height: isAnimating ? activeHeights[index] : idleHeights[index])
-                    .animation(
-                        isAnimating
-                            ? .easeInOut(duration: 0.55).repeatForever().delay(Double(index) * 0.08)
-                            : .easeInOut(duration: 0.2),
-                        value: isAnimating
-                    )
+                    .fill(Color.white.opacity(isAnimating ? 0.75 + Double(audioLevel) * 0.25 : 0.2))
+                    .frame(width: 3, height: height(for: index))
+                    .animation(.easeOut(duration: isAnimating ? 0.08 : 0.3), value: audioLevel)
+                    .animation(.easeInOut(duration: 0.25), value: isAnimating)
             }
         }
-        .frame(height: 28)
+        .frame(height: maxHeight + 4)
     }
 }
 

@@ -11,6 +11,7 @@ final class TranslationEngine: ObservableObject {
     @Published var isProcessing = false
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
+    @Published var audioLevel: Float = 0
     private var lastTranslationAt: Date = .distantPast
     private static let translationCooldown: TimeInterval = 2.0
     @Published private(set) var history: [TranslationEntry] = []
@@ -68,6 +69,7 @@ final class TranslationEngine: ObservableObject {
             transcript = ""
             translationText = ""
             errorMessage = nil
+            speechRecognizer.onAudioLevel = { [weak self] level in self?.audioLevel = level }
             try speechRecognizer.startListening(language: sourceLanguage)
             isListening = true
         } catch {
@@ -79,6 +81,7 @@ final class TranslationEngine: ObservableObject {
         guard isListening else { return }
 
         isListening = false
+        audioLevel = 0
         isProcessing = true
         errorMessage = nil
 
