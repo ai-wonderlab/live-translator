@@ -1,94 +1,77 @@
 # STATE.md — Easy Live Translator
-_Last updated: 2026-03-27 16:15_
+_Last updated: 2026-03-27 16:48_
 
 ---
 
-## Κατάσταση: Active Development — Feature Build Phase
+## Κατάσταση: Active Development
 
 ---
 
-## Τι έχει γίνει (2026-03-27)
+## ✅ Έτοιμο (merged to main `2dbbe9b`)
 
-### ✅ UI Redesign — Wire Sphere
-- Deep navy/black background, animated wire sphere (layered Ellipse rings)
-- Cyan accent (#33D1E6), state-based glow (recording=red, speaking=green, translating=purple)
-- MicCapsule button, ambient background glow
-
-### ✅ Conversation Mode
-- Δύο equal language pills (langA + langB) — χωρίς FROM/TO, χωρίς βέλη
-- LanguagePairSheet: επιλογή slot 1 + slot 2 ξεχωριστά
-- AppStorage keys: `langA`, `langB`
-
-### ✅ Auto-detect Speaker
-- Backend λαμβάνει langA.code + langB.code, ανιχνεύει ποια μιλήθηκε
-- `activeSttLanguage` εναλλάσσεται μετά κάθε μετάφραση
-- Detected language badge εμφανίζεται μετά τη μετάφραση
-- Original transcript κρυφό
-
-### ✅ 38 Γλώσσες
-- Αρχικές 20 + 18 νέες: Albanian, Bulgarian, Catalan, Chinese (Traditional),
-  Croatian, Czech, Filipino, Hebrew, Hungarian, Indonesian, Malay,
-  Romanian, Serbian, Slovak, Thai, Ukrainian, Vietnamese
-
-### ✅ Info.plist
-- APP_SECRET: easyfair-app-secret-v1
-- UIUserInterfaceStyle: Dark
-- UIRequiresFullScreen: true
-- iOS Deployment Target: 26.0
+| Feature | Περιγραφή |
+|---------|-----------|
+| Wire Sphere UI | Dark navy/black bg, animated rings, cyan accent, state glow |
+| Conversation Mode | langA + langB pills, auto-detect ποια γλώσσα μιλήθηκε |
+| 38 Γλώσσες | +Albanian, Romanian, Ukrainian, Bulgarian, Croatian, Czech, Hungarian, Slovak, Serbian, Hebrew, Thai, Vietnamese, Indonesian, Malay, Catalan, Filipino, Chinese Traditional |
+| Supabase Auth | Apple Sign In + email/password — λειτουργικό |
+| ProfileSheet | Person icon στο creditsRow, πάντα ορατό |
+| PaywallSheet | Trigger όταν credits=0, 4 plans (€0.99/3.99/6.99/24.99) |
+| Mic Lock | 🔒 + disabled όταν credits=0, πατώντας ανοίγει paywall |
+| Free Trial | 30 λεπτά δωρεάν, CreditManager ήδη υλοποιημένο |
 
 ---
 
-## Ανοιχτά PRs (pending merge)
+## 🔴 Ανοιχτά — για αύριο
 
-| Branch | Περιγραφή |
-|--------|-----------|
-| `feat/wire-sphere-ui` | Wire sphere UI redesign |
-| `feat/auto-detect-source` | Conversation mode + auto-detect + 38 γλώσσες |
-| `fix/full-screen-layout` | Full screen layout fixes |
-| `fix/product-ids` | Product ID alignment |
-| `fix/auto-detect-language-swap` | Language swap on detect |
+### 1. Payment Flow 💳
+- **Απόφαση αφεντικού**: Stripe vs StoreKit (Apple IAP)
+- Τα plans είναι placeholder: €0.99 / €3.99 / €6.99 / €24.99
+- Μόλις αποφασιστεί, συνδέουμε το "Purchase Hours" button
+- Product IDs έτοιμα: `gr.easyfair.credits.1h/5h/10h/50h`
 
----
+### 2. Apple Sign In — Supabase Setup 🍎
+- Πρέπει να ενεργοποιηθεί στο Supabase dashboard:
+  **Authentication → Providers → Apple → Enable**
+- Χρειάζεται Apple Developer: Service ID + Key
 
-## 🔴 Pending Issues
+### 3. Google Sign In 🔐
+- Δεν υλοποιήθηκε ακόμα
+- Χρειάζεται: Google OAuth Client ID για iOS
+- Μετά: προσθήκη στο AuthSheet
 
-### Full-screen background gaps (iOS 26)
-- Πάνω/κάτω μαύρα κενά λόγω iOS 26 windowing
-- Δοκιμάστηκε: ignoresSafeArea, GeometryReader, SceneDelegate, UIHostingController, onAppear frame fix, App-level ZStack
-- Ακόμα ανοιχτό — χρειάζεται διερεύνηση iOS 26 API
-
----
-
-## 🔜 Επόμενα (συμφωνημένα)
-
-### 1. User Profile
-- Οθόνη προφίλ χρήστη
-- Ονοματεπώνυμο, email, avatar
-- Σύνδεση με Supabase Auth ή custom backend
-
-### 2. Billing / Credits
-- Πώς λειτουργεί το σύστημα credits
-- In-App Purchase flow (StoreKit 2)
-- Product IDs: gr.easyfair.credits.1h / 5h / 10h / 50h
-- Credit display + refill UI
+### 4. Full-screen background gaps 📱
+- Πάνω/κάτω μαύρα κενά — iOS 26 windowing behavior
+- Έχουν δοκιμαστεί 10+ προσεγγίσεις — ακόμα ανοιχτό
+- Δεν επηρεάζει λειτουργικότητα
 
 ---
 
-## Αρχιτεκτονικές Αποφάσεις
+## Τεχνικές Πληροφορίες
 
-| Θέμα | Απόφαση |
-|------|---------|
-| Bundle ID | com.openclaw.EasyLiveTranslator |
-| Backend | https://backend-gamma-eight-88.vercel.app/api/translate |
-| Product ID format | gr.easyfair.credits.{1h/5h/10h/50h} |
-| Auto-detect | langA + langB στο backend, backend αποφασίζει |
-| STT alternation | activeSttLanguage εναλλάσσεται μετά κάθε translation |
-| File writes | Python open().write() — edit/write tools fail on this repo |
+| | |
+|-|-|
+| **Repo** | https://github.com/ai-wonderlab/live-translator |
+| **Branch** | main (τελευταίο merge: `2dbbe9b`) |
+| **Device UDID** | `00008030-001434290280802E` |
+| **iOS** | 26.3.1 |
+| **Backend** | https://backend-gamma-eight-88.vercel.app/api/translate |
+| **Supabase URL** | https://ctrddyzybgeyipsslznw.supabase.co |
+| **Supabase Key** | sb_publishable_1-mGhNHxlREzyaG2XkWn-w_HUo9Z4Yj |
+| **App Secret** | easyfair-app-secret-v1 |
+
+### Build & Install
+```bash
+cd ~/Documents/GitHub/live-translator/EasyLiveTranslator
+xcodebuild -scheme EasyLiveTranslator -destination 'id=00008030-001434290280802E' -allowProvisioningUpdates build
+APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/EasyLiveTranslator-*/Build/Products/Debug-iphoneos -name "EasyLiveTranslator.app" | head -1)
+xcrun devicectl device install app --device 00008030-001434290280802E "$APP_PATH"
+```
 
 ---
 
 ## Κανόνες Εργασίας
 - Κάθε feature σε δικό του branch
-- Merge μόνο μέσω PR — ποτέ direct push στο main
-- Surgical edits μόνο — ποτέ full rewrite αρχείου
-- Κάθε task ξεκινά με συζήτηση → "ναι" → εκτέλεση
+- Merge μόνο μέσω PR (ή explicit εντολή)
+- Surgical edits μόνο — ποτέ full rewrite
+- Κάθε task: συζήτηση → "ναι" → εκτέλεση
