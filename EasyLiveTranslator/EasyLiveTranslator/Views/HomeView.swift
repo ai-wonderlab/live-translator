@@ -353,20 +353,7 @@ private struct TranslationHistoryView: View {
     var body: some View {
         Group {
             if history.isEmpty {
-                VStack(spacing: 8) {
-                    Text("Your translations will appear here.")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.34))
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity, minHeight: 80)
-                .padding(20)
-                .background(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+                EmptyView()
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
