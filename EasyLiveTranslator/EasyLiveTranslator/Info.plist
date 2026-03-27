@@ -27,10 +27,16 @@
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>TranslationAPIAppSecret</key>
-    <string>$(TRANSLATION_API_APP_SECRET)</string>
+    <string>easyfair-app-secret-v1</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<key>UIWindowSceneSessionRoleApplication</key>
+	<string>UIWindowSceneSessionRoleApplication</string>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 </dict>
 </plist>

@@ -20,7 +20,24 @@ enum Language: String, CaseIterable, Identifiable {
     case spanish = "es"
     case swedish = "sv"
     case turkish = "tr"
+    case albanian = "sq"
+    case bulgarian = "bg"
+    case catalan = "ca"
     case chineseSimplified = "zh"
+    case chineseTraditional = "zh-TW"
+    case croatian = "hr"
+    case czech = "cs"
+    case filipino = "fil"
+    case hebrew = "he"
+    case hungarian = "hu"
+    case indonesian = "id"
+    case malay = "ms"
+    case romanian = "ro"
+    case serbian = "sr"
+    case slovak = "sk"
+    case thai = "th"
+    case ukrainian = "uk"
+    case vietnamese = "vi"
 
     var id: String { code }
 
@@ -72,8 +89,42 @@ enum Language: String, CaseIterable, Identifiable {
             return "sv-SE"
         case .turkish:
             return "tr-TR"
+        case .albanian:
+            return "sq-AL"
+        case .bulgarian:
+            return "bg-BG"
+        case .catalan:
+            return "ca-ES"
         case .chineseSimplified:
             return "zh-CN"
+        case .chineseTraditional:
+            return "zh-TW"
+        case .croatian:
+            return "hr-HR"
+        case .czech:
+            return "cs-CZ"
+        case .filipino:
+            return "fil-PH"
+        case .hebrew:
+            return "he-IL"
+        case .hungarian:
+            return "hu-HU"
+        case .indonesian:
+            return "id-ID"
+        case .malay:
+            return "ms-MY"
+        case .romanian:
+            return "ro-RO"
+        case .serbian:
+            return "sr-RS"
+        case .slovak:
+            return "sk-SK"
+        case .thai:
+            return "th-TH"
+        case .ukrainian:
+            return "uk-UA"
+        case .vietnamese:
+            return "vi-VN"
         }
     }
 
@@ -117,8 +168,42 @@ enum Language: String, CaseIterable, Identifiable {
             return "Swedish"
         case .turkish:
             return "Turkish"
+        case .albanian:
+            return "Albanian"
+        case .bulgarian:
+            return "Bulgarian"
+        case .catalan:
+            return "Catalan"
         case .chineseSimplified:
-            return "Chinese"
+            return "Chinese (Simplified)"
+        case .chineseTraditional:
+            return "Chinese (Traditional)"
+        case .croatian:
+            return "Croatian"
+        case .czech:
+            return "Czech"
+        case .filipino:
+            return "Filipino"
+        case .hebrew:
+            return "Hebrew"
+        case .hungarian:
+            return "Hungarian"
+        case .indonesian:
+            return "Indonesian"
+        case .malay:
+            return "Malay"
+        case .romanian:
+            return "Romanian"
+        case .serbian:
+            return "Serbian"
+        case .slovak:
+            return "Slovak"
+        case .thai:
+            return "Thai"
+        case .ukrainian:
+            return "Ukrainian"
+        case .vietnamese:
+            return "Vietnamese"
         }
     }
 
@@ -162,8 +247,42 @@ enum Language: String, CaseIterable, Identifiable {
             return "🇸🇪"
         case .turkish:
             return "🇹🇷"
+        case .albanian:
+            return "🇦🇱"
+        case .bulgarian:
+            return "🇧🇬"
+        case .catalan:
+            return "🏴󠁥󠁳󠁣󠁴󠁿"
         case .chineseSimplified:
             return "🇨🇳"
+        case .chineseTraditional:
+            return "🇹🇼"
+        case .croatian:
+            return "🇭🇷"
+        case .czech:
+            return "🇨🇿"
+        case .filipino:
+            return "🇵🇭"
+        case .hebrew:
+            return "🇮🇱"
+        case .hungarian:
+            return "🇭🇺"
+        case .indonesian:
+            return "🇮🇩"
+        case .malay:
+            return "🇲🇾"
+        case .romanian:
+            return "🇷🇴"
+        case .serbian:
+            return "🇷🇸"
+        case .slovak:
+            return "🇸🇰"
+        case .thai:
+            return "🇹🇭"
+        case .ukrainian:
+            return "🇺🇦"
+        case .vietnamese:
+            return "🇻🇳"
         }
     }
 }

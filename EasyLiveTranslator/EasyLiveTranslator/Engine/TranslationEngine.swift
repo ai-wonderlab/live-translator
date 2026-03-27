@@ -3,10 +3,18 @@ import Combine
 
 @MainActor
 final class TranslationEngine: ObservableObject {
+    // Conversation pair — set from HomeView via AppStorage
+    var langA: Language = .greek
+    var langB: Language = .english
+
+    // Active STT language — alternates after each translation
+    var activeSttLanguage: Language = .greek
+
     @Published var sourceLanguage: Language = .greek
     @Published var targetLanguage: Language = .english
     @Published var transcript = ""
     @Published var translationText = ""
+    @Published var detectedLanguage: Language? = nil
     @Published var isListening = false
     @Published var isProcessing = false
     @Published var isPreparingPermissions = false
@@ -58,6 +66,7 @@ final class TranslationEngine: ObservableObject {
         (sourceLanguage, targetLanguage) = (targetLanguage, sourceLanguage)
         transcript = ""
         translationText = ""
+        detectedLanguage = nil
         errorMessage = nil
     }
 
@@ -67,8 +76,9 @@ final class TranslationEngine: ObservableObject {
         do {
             transcript = ""
             translationText = ""
+            detectedLanguage = nil
             errorMessage = nil
-            try speechRecognizer.startListening(language: sourceLanguage)
+            try speechRecognizer.startListening(language: activeSttLanguage)
             isListening = true
         } catch {
             errorMessage = error.localizedDescription
@@ -95,28 +105,31 @@ final class TranslationEngine: ObservableObject {
 
             let response = try await api.translate(
                 text: recognized,
-                sourceLanguage: sourceLanguage,
-                targetLanguage: targetLanguage
+                langA: langA,
+                langB: langB
             )
             translationText = response.translation
-            // If backend detected the opposite language, silently swap source/target
-            if let detectedLanguage = Language(code: response.detected),
-               detectedLanguage != sourceLanguage {
-                (sourceLanguage, targetLanguage) = (targetLanguage, sourceLanguage)
-            }
+            let detected = Language(code: response.detected ?? "") ?? activeSttLanguage
+            detectedLanguage = detected
+
+            // Conversation mode: if A spoke → next time listen for B, and vice versa
+            let spokenLang = detected
+            let translateTo = (spokenLang == langA) ? langB : langA
+            activeSttLanguage = translateTo  // next speaker speaks the other language
+
             credits.deductTranslation()
             lastTranslationAt = Date()
             history.insert(
                 TranslationEntry(
                     spokenText: recognized,
                     translatedText: response.translation,
-                    sourceLanguage: sourceLanguage,
-                    targetLanguage: targetLanguage,
+                    sourceLanguage: spokenLang,
+                    targetLanguage: translateTo,
                     date: Date()
                 ),
                 at: 0
             )
-            await speechSynthesizer.speak(response.translation, language: targetLanguage)
+            await speechSynthesizer.speak(response.translation, language: translateTo)
 
             let elapsed = Date().timeIntervalSince(startedAt)
             print(String(format: "[TIMING] Total: %.1fs", elapsed))

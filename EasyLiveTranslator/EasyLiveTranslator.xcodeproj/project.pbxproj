@@ -3,10 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		49B1F86C2F76CDF80065DC5B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 49B1F86B2F76CDF80065DC5B /* Supabase */; };
+		49B1F86E2F76CE090065DC5B /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 49B1F86D2F76CE090065DC5B /* Auth */; };
 		A00000000000000000000001 /* EasyLiveTranslatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* EasyLiveTranslatorApp.swift */; };
 		A00000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* ContentView.swift */; };
 		A00000000000000000000003 /* TranslationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* TranslationEngine.swift */; };
@@ -19,6 +21,8 @@
 		A0000000000000000000000A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* HomeView.swift */; };
 		A0000000000000000000000B /* MicButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* MicButton.swift */; };
 		A0000000000000000000000C /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001E /* StoreManager.swift */; };
+		BB4688A61B4AB647E6B6B90D /* TranslationEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */; };
+		DD288879659C7046CAA0B196 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +41,8 @@
 		A0000000000000000000001C /* MicButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicButton.swift; sourceTree = "<group>"; };
 		A0000000000000000000001D /* EasyLiveTranslator.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasyLiveTranslator.entitlements; sourceTree = "<group>"; };
 		A0000000000000000000001E /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationEntry.swift; sourceTree = "<group>"; };
+		CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,16 +50,26 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49B1F86E2F76CE090065DC5B /* Auth in Frameworks */,
+				49B1F86C2F76CDF80065DC5B /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		49B1F86A2F76CDF80065DC5B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		A00000000000000000000030 = {
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000031 /* EasyLiveTranslator */,
+				49B1F86A2F76CDF80065DC5B /* Frameworks */,
 				A00000000000000000000032 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,6 +122,7 @@
 			children = (
 				A00000000000000000000018 /* Language.swift */,
 				A00000000000000000000019 /* TranslationResult.swift */,
+				AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -114,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				A0000000000000000000001B /* HomeView.swift */,
+				CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */,
 				A0000000000000000000001C /* MicButton.swift */,
 			);
 			path = Views;
@@ -163,6 +181,9 @@
 				Base,
 			);
 			mainGroup = A00000000000000000000030;
+			packageReferences = (
+				49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			productRefGroup = A00000000000000000000032 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -196,7 +217,9 @@
 				A00000000000000000000007 /* CreditManager.swift in Sources */,
 				A00000000000000000000008 /* Language.swift in Sources */,
 				A00000000000000000000009 /* TranslationResult.swift in Sources */,
+				BB4688A61B4AB647E6B6B90D /* TranslationEntry.swift in Sources */,
 				A0000000000000000000000A /* HomeView.swift in Sources */,
+				DD288879659C7046CAA0B196 /* OnboardingView.swift in Sources */,
 				A0000000000000000000000B /* MicButton.swift in Sources */,
 				A0000000000000000000000C /* StoreManager.swift in Sources */,
 			);
@@ -211,16 +234,16 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = EasyLiveTranslator/EasyLiveTranslator.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = VKS7898WXK;
 				ENABLE_PREVIEWS = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = EasyLiveTranslator/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -243,16 +266,16 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = EasyLiveTranslator/EasyLiveTranslator.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = VKS7898WXK;
 				ENABLE_PREVIEWS = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = EasyLiveTranslator/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -311,6 +334,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		49B1F86B2F76CDF80065DC5B /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		49B1F86D2F76CE090065DC5B /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A00000000000000000000060 /* Project object */;
 }

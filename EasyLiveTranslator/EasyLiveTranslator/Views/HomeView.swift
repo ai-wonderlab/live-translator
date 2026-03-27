@@ -1,528 +1,647 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Design System
+
+private enum DS {
+    static let bg            = Color(red: 0.0, green: 0.0, blue: 0.0)
+    static let bgMid         = Color(red: 0.048, green: 0.058, blue: 0.095)
+    static let surface       = Color.white.opacity(0.055)
+    static let border        = Color.white.opacity(0.08)
+    static let borderBright  = Color.white.opacity(0.14)
+    static let textPrimary   = Color.white
+    static let textSecondary = Color.white.opacity(0.55)
+    static let textTertiary  = Color.white.opacity(0.25)
+    static let accent        = Color(red: 0.20, green: 0.82, blue: 0.90)
+    static let accentSoft    = Color(red: 0.20, green: 0.82, blue: 0.90).opacity(0.15)
+    static let accentGlow    = Color(red: 0.20, green: 0.82, blue: 0.90).opacity(0.28)
+    static let recording     = Color(red: 0.95, green: 0.35, blue: 0.30)
+    static let recordingGlow = Color(red: 0.95, green: 0.35, blue: 0.30).opacity(0.30)
+    static let speaking      = Color(red: 0.30, green: 0.88, blue: 0.60)
+    static let speakingGlow  = Color(red: 0.30, green: 0.88, blue: 0.60).opacity(0.28)
+    static let translating   = Color(red: 0.55, green: 0.45, blue: 0.95)
+    static let translatingGlow = Color(red: 0.55, green: 0.45, blue: 0.95).opacity(0.32)
+}
+
+// MARK: - Shared Mic State
+
+enum MicState: Equatable { case idle, recording, translating, speaking }
+
+extension MicState {
+    var accentColor: Color {
+        switch self {
+        case .idle: return DS.accent
+        case .recording: return DS.recording
+        case .translating: return DS.translating
+        case .speaking: return DS.speaking
+        }
+    }
+    var glowColor: Color {
+        switch self {
+        case .idle: return DS.accentGlow
+        case .recording: return DS.recordingGlow
+        case .translating: return DS.translatingGlow
+        case .speaking: return DS.speakingGlow
+        }
+    }
+    var label: String {
+        switch self {
+        case .idle: return "HOLD TO TALK"
+        case .recording: return "LISTENING"
+        case .translating: return "TRANSLATING"
+        case .speaking: return "SPEAKING"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .idle, .recording: return "mic.fill"
+        case .translating: return "ellipsis"
+        case .speaking: return "speaker.wave.2.fill"
+        }
+    }
+}
+
+// MARK: - HomeView
 
 struct HomeView: View {
     @StateObject private var engine = TranslationEngine()
     @ObservedObject private var credits = CreditManager.shared
     @StateObject private var storeManager = StoreManager()
-    @AppStorage("sourceLang") private var sourceLanguageCode = Language.greek.code
-    @AppStorage("targetLang") private var targetLanguageCode = Language.english.code
-    @State private var showingLanguageSheet = false
+    @AppStorage("langA") private var langACode = Language.greek.code
+    @AppStorage("langB") private var langBCode = Language.english.code
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+
+    @State private var showingPairSheet  = false
     @State private var showingCreditsSheet = false
+    @State private var showOnboarding = false
+    @State private var showPaywall = false
+    @State private var showProfile = false
+    @ObservedObject private var auth = AuthManager.shared
     @GestureState private var isPressingMic = false
+
+    private var langA: Language { Language(code: langACode) ?? .greek }
+    private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 20) {
-                // Language picker — top
-                HStack(spacing: 14) {
-                    Button {
-                        showingLanguageSheet = true
-                    } label: {
-                        languageBadge(sourceLanguage)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        engine.swapLanguages()
-                        sourceLanguageCode = engine.sourceLanguage.code
-                        targetLanguageCode = engine.targetLanguage.code
-                    } label: {
-                        Image(systemName: "arrow.left.arrow.right")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.75))
-                            .padding(10)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(engine.isListening || engine.isProcessing)
-
-                    Button {
-                        showingLanguageSheet = true
-                    } label: {
-                        languageBadge(targetLanguage)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 16)
-                .background(Color.white.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-
-                Spacer()
-
-                // Mic section — center
-                VStack(spacing: 18) {
-                    WaveformRow(isAnimating: engine.isListening)
-
-                    MicButton(state: micState, isPressed: isPressingMic)
-                        .contentShape(Circle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .updating($isPressingMic) { _, state, _ in
-                                    if !state {
-                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    }
-                                    state = true
-                                }
-                                .onChanged { _ in
-                                    engine.beginHoldIfNeeded()
-                                }
-                                .onEnded { _ in
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    Task {
-                                        await engine.endHold()
-                                    }
-                                }
-                        )
-                        .accessibilityLabel("Hold to talk")
-
-                    Text(statusLine)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(statusColor)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 320)
-                }
-
-                Spacer()
-
-                // Translation history — bottom
-                TranslationHistoryView(history: engine.history)
+            DS.bg
+            ambientBackground
+            VStack(spacing: 0) {
+                topBar
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                Spacer(minLength: 12)
+                sphereSection
+                Spacer(minLength: 12)
+                translationCard
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+                creditsRow
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
+            .safeAreaPadding()
         }
-        .safeAreaInset(edge: .bottom) {
-            CreditsRow(
-                minutesText: credits.remainingMinutesText,
-                onAdd: { showingCreditsSheet = true }
-            )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
-            .background(
-                LinearGradient(
-                    colors: [Color.black.opacity(0), Color.black.opacity(0.92)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            )
-        }
-        .preferredColorScheme(.dark)
+        .ignoresSafeArea(.all)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
-            engine.sourceLanguage = sourceLanguage
-            engine.targetLanguage = targetLanguage
+            engine.langA = langA
+            engine.langB = langB
+            engine.activeSttLanguage = langA
             await engine.prepareForLaunch()
             await storeManager.loadProducts()
+            if !hasSeenOnboarding { showOnboarding = true }
         }
-        .onChange(of: sourceLanguageCode) { _, _ in
-            engine.sourceLanguage = sourceLanguage
+        .onChange(of: langACode) { _, _ in engine.langA = langA; engine.activeSttLanguage = langA }
+        .onChange(of: langBCode) { _, _ in engine.langB = langB }
+        .onChange(of: credits.hasCredits) { _, has in
+            if !has { showPaywall = true }
         }
-        .onChange(of: targetLanguageCode) { _, _ in
-            engine.targetLanguage = targetLanguage
-        }
-        .sheet(isPresented: $showingLanguageSheet) {
-            LanguagePickerSheet(
-                sourceLanguageCode: $sourceLanguageCode,
-                targetLanguageCode: $targetLanguageCode
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showingPairSheet) {
+            LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingCreditsSheet) {
             CreditsPurchaseSheet(storeManager: storeManager, credits: credits)
-                .presentationDetents([.fraction(0.42), .medium])
+                .presentationDetents([.fraction(0.48), .medium])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showProfile) {
+            ProfileSheet(showPaywall: $showPaywall)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView { hasSeenOnboarding = true; showOnboarding = false }
+        }
     }
 
-    private var sourceLanguage: Language {
-        Language(code: sourceLanguageCode) ?? .greek
+    // MARK: Ambient background glow
+
+    private var ambientBackground: some View {
+        ZStack {
+            Ellipse()
+                .fill(micState.glowColor)
+                .frame(width: 360, height: 360)
+                .blur(radius: 100)
+                .offset(y: -10)
+                .animation(.easeInOut(duration: 0.7), value: micState)
+
+            LinearGradient(
+                colors: [DS.bgMid.opacity(0.5), .clear],
+                startPoint: .top, endPoint: .center
+            ).ignoresSafeArea()
+        }
     }
 
-    private var targetLanguage: Language {
-        Language(code: targetLanguageCode) ?? .english
+    // MARK: Top bar
+
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            langPill(langA, slot: 1)
+            langPill(langB, slot: 2)
+        }
     }
 
-    private var micState: MicButton.State {
-        if engine.isListening {
-            return .recording
+    private func langPill(_ lang: Language, slot: Int) -> some View {
+        Button {
+            // Open pair sheet pre-selecting this slot
+            showingPairSheet = true
+        } label: {
+            HStack(spacing: 8) {
+                Text(lang.flag).font(.system(size: 22))
+                Text(lang.displayName)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DS.textPrimary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DS.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.borderBright, lineWidth: 1))
         }
-        if engine.isProcessing && !engine.translationText.isEmpty {
-            return .speaking
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Sphere + mic
+
+    private var sphereSection: some View {
+        VStack(spacing: 16) {
+            WireSphere(state: micState)
+                .frame(width: 165, height: 165)
+
+            // Detected language badge
+            if let detected = engine.detectedLanguage {
+                HStack(spacing: 6) {
+                    Text(detected.flag).font(.system(size: 13))
+                    Text(detected.displayName + " detected")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .tracking(0.5)
+                        .foregroundStyle(DS.accent)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(DS.accentSoft, in: Capsule())
+                .overlay(Capsule().strokeBorder(DS.accent.opacity(0.2), lineWidth: 1))
+                .transition(.scale.combined(with: .opacity))
+            }
+
+            Text(statusLine)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(engine.errorMessage == nil ? DS.textSecondary : DS.recording)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 280)
+                .animation(.easeInOut(duration: 0.2), value: statusLine)
+
+            if !credits.hasCredits {
+                // No credits — show locked mic
+                Button { showPaywall = true } label: {
+                    MicCapsule(state: .idle, isPressed: false)
+                        .overlay(
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.8))
+                        )
+                        .opacity(0.5)
+                }
+            } else {
+                MicCapsule(state: micState, isPressed: isPressingMic)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .updating($isPressingMic) { _, s, _ in s = true }
+                            .onChanged { _ in engine.beginHoldIfNeeded() }
+                            .onEnded { _ in Task { await engine.endHold() } }
+                    )
+            }
         }
-        if engine.isProcessing {
-            return .translating
+    }
+
+    // MARK: Translation card
+
+    private var translationCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if engine.transcript.isEmpty && engine.translationText.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "text.bubble")
+                        .font(.system(size: 15))
+                        .foregroundStyle(DS.textTertiary)
+                    Text("Translation will appear here")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.textTertiary)
+                }
+            } else {
+                if !engine.translationText.isEmpty {
+                    cardLabel("Translation", icon: "text.bubble", color: DS.accent.opacity(0.85))
+                    Text(engine.translationText)
+                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DS.textPrimary)
+                        .lineLimit(4)
+                }
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(DS.surface, in: RoundedRectangle(cornerRadius: 22))
+        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(DS.border, lineWidth: 1))
+        .animation(.easeInOut(duration: 0.3), value: engine.translationText)
+    }
+
+    private func cardLabel(_ title: String, icon: String, color: Color) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(color)
+            .tracking(0.8)
+            .padding(.bottom, 4)
+    }
+
+    // MARK: Credits row
+
+    private var creditsRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.fill").font(.system(size: 12)).foregroundStyle(DS.accent)
+            Text(credits.remainingMinutesText)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(DS.textSecondary)
+            Spacer()
+            Button { showProfile = true } label: {
+                Label("Add time", systemImage: "plus")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DS.accent)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(DS.accentSoft, in: Capsule())
+                    .overlay(Capsule().strokeBorder(DS.accent.opacity(0.18), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            Button { showProfile = true } label: {
+                Image(systemName: auth.isSignedIn ? "person.circle.fill" : "person.circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(auth.isSignedIn ? DS.accent : DS.textSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 18).padding(.vertical, 12)
+        .background(DS.surface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(DS.border, lineWidth: 1))
+    }
+
+    // MARK: Safe Area Heights
+
+    private var statusBarHeight: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.statusBarManager?.statusBarFrame.height ?? 54
+    }
+
+    private var homeIndicatorHeight: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.safeAreaInsets.bottom ?? 34
+    }
+
+    // MARK: Full Screen Fix
+
+    private func forceFullScreen() {
+        guard let ws = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = ws.windows.first else { return }
+        let screen = ws.screen
+        window.frame = screen.bounds
+        window.backgroundColor = .black
+        if let root = window.rootViewController {
+            root.view.frame = screen.bounds
+            root.view.backgroundColor = .black
+        }
+    }
+
+    // MARK: Helpers
+
+    private var micState: MicState {
+        if engine.isListening  { return .recording }
+        if engine.isProcessing && !engine.translationText.isEmpty { return .speaking }
+        if engine.isProcessing { return .translating }
         return .idle
     }
 
     private var statusLine: String {
-        if engine.isPreparingPermissions {
-            return "Requesting microphone and speech recognition access..."
-        }
-        if let errorMessage = engine.errorMessage {
-            return errorMessage
-        }
+        if engine.isPreparingPermissions { return "Requesting access..." }
+        if let e = engine.errorMessage   { return e }
         switch micState {
-        case .idle:
-            return engine.permissionsGranted
-                ? "Hold to speak. Release to translate."
-                : "Allow access to microphone and speech recognition to continue."
-        case .recording:
-            return "Listening in \(sourceLanguage.displayName)."
-        case .translating:
-            return "Translating to \(targetLanguage.displayName)."
-        case .speaking:
-            return "Speaking in \(targetLanguage.displayName)."
+        case .idle:        return engine.permissionsGranted ? "Hold to speak" : "Microphone access required"
+        case .recording:   return "Listening..."
+        case .translating: return "Translating..."
+        case .speaking:    return "Speaking..."
         }
-    }
-
-    private var statusColor: Color {
-        engine.errorMessage == nil ? .white.opacity(0.64) : .red.opacity(0.85)
-    }
-
-
-
-    private func languageBadge(_ language: Language) -> some View {
-        HStack(spacing: 10) {
-            Text(language.flag)
-                .font(.system(size: 28))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(language.displayName)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Text(language.localeIdentifier)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.4))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-private struct WaveformRow: View {
-    let isAnimating: Bool
+// MARK: - Wire Sphere
 
-    // idle heights give a recognizable "audio bar" silhouette — not dots
-    private let idleHeights: [CGFloat] = [10, 16, 10]
-    private let activeHeights: [CGFloat] = [16, 28, 20]
+struct WireSphere: View {
+    let state: MicState
+
+    @State private var rot1: Double = 0
+    @State private var rot2: Double = 0
+    @State private var breath: CGFloat = 1.0
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<3, id: \.self) { index in
-                Capsule()
-                    .fill(Color.white.opacity(isAnimating ? 0.85 : 0.25))
-                    .frame(width: 4, height: isAnimating ? activeHeights[index] : idleHeights[index])
-                    .animation(
-                        isAnimating
-                            ? .easeInOut(duration: 0.55).repeatForever().delay(Double(index) * 0.08)
-                            : .easeInOut(duration: 0.2),
-                        value: isAnimating
+        ZStack {
+            // Soft ambient glow
+            Circle()
+                .fill(state.glowColor)
+                .blur(radius: 40)
+                .scaleEffect(breath * 1.15)
+
+            // Wire rings
+            ZStack {
+                ring(opacity: 0.55, wRatio: 1.0, hRatio: 0.38, extraDeg: 0,   rot: rot1)
+                ring(opacity: 0.38, wRatio: 1.0, hRatio: 0.38, extraDeg: 55,  rot: rot1)
+                ring(opacity: 0.25, wRatio: 1.0, hRatio: 0.38, extraDeg: 110, rot: rot1)
+                ring(opacity: 0.45, wRatio: 0.38, hRatio: 1.0, extraDeg: 0,   rot: rot2)
+                ring(opacity: 0.28, wRatio: 0.38, hRatio: 1.0, extraDeg: 50,  rot: rot2)
+
+                // Outer circle outline
+                Circle()
+                    .stroke(state.accentColor.opacity(0.18), lineWidth: 0.7)
+
+                // Inner radial glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [state.accentColor.opacity(0.16), .clear],
+                            center: .center, startRadius: 0, endRadius: 80
+                        )
                     )
+                    .scaleEffect(0.75)
+                    .scaleEffect(breath)
+
+                // Center icon
+                Image(systemName: state.icon)
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(state.accentColor)
+                    .shadow(color: state.glowColor, radius: 12)
             }
+            .scaleEffect(breath)
         }
-        .frame(height: 28)
+        .onAppear { animate() }
+        .onChange(of: state) { _, _ in animate() }
+    }
+
+    private func ring(opacity: Double, wRatio: CGFloat, hRatio: CGFloat, extraDeg: Double, rot: Double) -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width * wRatio
+            let h = geo.size.height * hRatio
+            Ellipse()
+                .stroke(state.accentColor.opacity(opacity), lineWidth: 1.0)
+                .frame(width: w, height: h)
+                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                .rotationEffect(.degrees(rot + extraDeg))
+        }
+    }
+
+    private func animate() {
+        let fast = state != .idle
+        let spd1: Double = fast ? 4.5 : 14.0
+        let spd2: Double = fast ? 6.0 : 18.0
+        let bDur: Double = fast ? 1.2 : 3.2
+        let bAmt: CGFloat = fast ? 1.10 : 1.04
+
+        withAnimation(.linear(duration: spd1).repeatForever(autoreverses: false)) { rot1 = 360 }
+        withAnimation(.linear(duration: spd2).repeatForever(autoreverses: false)) { rot2 = -360 }
+        withAnimation(.easeInOut(duration: bDur).repeatForever(autoreverses: true)) { breath = bAmt }
     }
 }
 
-private struct CreditsRow: View {
-    let minutesText: String
-    let onAdd: () -> Void
+// MARK: - Mic Capsule
+
+struct MicCapsule: View {
+    let state: MicState
+    let isPressed: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            Label(minutesText, systemImage: "clock")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.76))
-
-            Spacer()
-
-            Button(action: onAdd) {
-                Text("[+]")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
+        HStack(spacing: 10) {
+            Image(systemName: state.icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(labelForeground)
+            Text(state.label)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .tracking(1.8)
+                .foregroundStyle(labelForeground)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.05))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+        .background(state.accentColor, in: Capsule())
+        .overlay(Capsule().strokeBorder(state.accentColor.opacity(0.3), lineWidth: 1))
+        .shadow(color: state.glowColor, radius: state == .idle ? 14 : 26)
+        .scaleEffect(isPressed ? 0.93 : 1.0)
+        .animation(.spring(response: 0.22, dampingFraction: 0.6), value: isPressed)
+        .animation(.easeInOut(duration: 0.3), value: state)
+    }
+
+    private var labelForeground: Color {
+        // Cyan is light enough — use dark text. Others use white.
+        state == .idle ? DS.bg : .white
     }
 }
 
-private struct LanguagePickerSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var sourceLanguageCode: String
-    @Binding var targetLanguageCode: String
+// MARK: - Language Pair Sheet
 
-    private let columns = [GridItem(.adaptive(minimum: 132), spacing: 12)]
+struct LanguagePairSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var langACode: String
+    @Binding var langBCode: String
+    @State private var search = ""
+    @State private var selecting: Int = 1  // 1 = picking A, 2 = picking B
+
+    private var filtered: [Language] {
+        search.isEmpty ? Language.allCases
+            : Language.allCases.filter { $0.displayName.localizedCaseInsensitiveContains(search) }
+    }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(Language.allCases) { language in
-                        Button {
-                            select(language)
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(language.flag)
-                                    .font(.system(size: 28))
-
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(language.displayName)
-                                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.white)
-
-                                    Text(language.localeIdentifier)
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.white.opacity(0.45))
-                                }
-
-                                Spacer(minLength: 0)
-                            }
-                            .padding(14)
-                            .background(cellBackground(for: language))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                        }
-                        .buttonStyle(.plain)
-                    }
+            VStack(spacing: 0) {
+                // Pair preview
+                HStack(spacing: 12) {
+                    pairSlot(code: langACode, slot: 1)
+                    pairSlot(code: langBCode, slot: 2)
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+
+                Divider().background(DS.border)
+
+                List(filtered) { lang in
+                    Button { select(lang) } label: {
+                        HStack(spacing: 14) {
+                            Text(lang.flag).font(.system(size: 26))
+                            Text(lang.displayName)
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .foregroundStyle(DS.textPrimary)
+                            Spacer()
+                            if langACode == lang.code { dot(DS.accent) }
+                            if langBCode == lang.code { dot(DS.speaking) }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(langACode == lang.code || langBCode == lang.code ? DS.accentSoft : DS.surface)
+                            .padding(.vertical, 2)
+                    )
+                }
+                .listStyle(.plain)
+                .background(DS.bg)
+                .scrollContentBackground(.hidden)
+                .searchable(text: $search, prompt: "Search language")
             }
-            .background(Color.black.ignoresSafeArea())
-            .navigationTitle("Languages")
+            .navigationTitle("Language Pair")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }.foregroundStyle(DS.accent)
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .background(DS.bg)
     }
 
-    private func select(_ language: Language) {
-        if sourceLanguageCode == language.code {
-            targetLanguageCode = language.code == Language.english.code ? Language.greek.code : Language.english.code
-            return
-        }
-
-        sourceLanguageCode = language.code
-
-        if targetLanguageCode == language.code {
-            targetLanguageCode = sourceLanguageCode == Language.english.code ? Language.greek.code : Language.english.code
-        }
-    }
-
-    private func cellBackground(for language: Language) -> Color {
-        let isSelected = sourceLanguageCode == language.code || targetLanguageCode == language.code
-        return isSelected ? Color.white.opacity(0.12) : Color.white.opacity(0.05)
-    }
-}
-
-private struct TranslationHistoryView: View {
-    let history: [TranslationEntry]
-
-    var body: some View {
-        Group {
-            if history.isEmpty {
-                VStack(spacing: 8) {
-                    Text("Your translations will appear here.")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.34))
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity, minHeight: 80)
-                .padding(20)
-                .background(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(history) { entry in
-                            TranslationEntryRow(entry: entry)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                .frame(maxHeight: 240)
-                .background(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+    private func pairSlot(code: String, slot: Int) -> some View {
+        let lang = Language(code: code) ?? .greek
+        let isActive = selecting == slot
+        return Button { selecting = slot } label: {
+            VStack(spacing: 5) {
+                Text(lang.flag).font(.system(size: 30))
+                Text(lang.displayName)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(isActive ? DS.textPrimary : DS.textSecondary)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(isActive ? DS.accentSoft : DS.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(isActive ? DS.accent.opacity(0.4) : DS.border, lineWidth: isActive ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func dot(_ color: Color) -> some View {
+        Circle().fill(color).frame(width: 8, height: 8)
+    }
+
+    private func select(_ lang: Language) {
+        if selecting == 1 {
+            langACode = lang.code
+            if langBCode == lang.code {
+                langBCode = lang.code == Language.english.code ? Language.greek.code : Language.english.code
+            }
+            selecting = 2
+        } else {
+            langBCode = lang.code
+            if langACode == lang.code {
+                langACode = lang.code == Language.greek.code ? Language.english.code : Language.greek.code
+            }
+            selecting = 1
         }
     }
 }
 
-private struct TranslationEntryRow: View {
-    let entry: TranslationEntry
+// MARK: - Credits Sheet
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text(entry.sourceLanguage.flag)
-                    .font(.system(size: 13))
-                Text(entry.spokenText)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .lineLimit(1)
-            }
-
-            HStack(spacing: 6) {
-                Text(entry.targetLanguage.flag)
-                    .font(.system(size: 15))
-                Text(entry.translatedText)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 8)
-    }
-}
-
-
-private struct CreditsPurchaseSheet: View {
+struct CreditsPurchaseSheet: View {
     @ObservedObject var storeManager: StoreManager
     @ObservedObject var credits: CreditManager
 
     var body: some View {
-        VStack(spacing: 16) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 42, height: 5)
-                .padding(.top, 8)
-
-            Text("Add Credits")
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-
-            Text(credits.displayTime)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.7))
-
-            if case .failed(let message) = storeManager.purchaseState {
-                Text(message)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.red.opacity(0.88))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            } else if case .success(let message) = storeManager.purchaseState {
-                Text(message)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.green.opacity(0.88))
-            }
-
-            if storeManager.products.isEmpty {
-                Text("Products load from App Store Connect or a StoreKit configuration in sandbox.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.64))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            } else {
-                ForEach(storeManager.products, id: \.id) { product in
-                    Button {
-                        Task {
-                            await storeManager.purchase(product)
-                        }
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(product.displayName)
-                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.white)
-
-                                Text(packDurationText(for: product.id))
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.5))
-                            }
-
-                            Spacer()
-
-                            Text(product.displayPrice)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isPurchasing)
-                    .padding(.horizontal, 20)
+        VStack(spacing: 20) {
+            Capsule().fill(Color.white.opacity(0.18)).frame(width: 40, height: 4).padding(.top, 10)
+            VStack(spacing: 6) {
+                Text("Add Translation Time")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(DS.textPrimary)
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.fill").font(.system(size: 12)).foregroundStyle(DS.accent)
+                    Text(credits.displayTime)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.textSecondary)
                 }
             }
-
-            if isPurchasing {
-                ProgressView()
-                    .tint(.white)
+            if case .failed(let m) = storeManager.purchaseState {
+                Text(m).font(.system(size: 13, design: .rounded)).foregroundStyle(DS.recording).multilineTextAlignment(.center).padding(.horizontal, 24)
+            } else if case .success(let m) = storeManager.purchaseState {
+                Text(m).font(.system(size: 13, design: .rounded)).foregroundStyle(DS.speaking)
             }
-
-            Text("Free trial: 30 min. Each translation deducts 20 sec.")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.64))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-
+            if storeManager.products.isEmpty {
+                Text("Loading products...").font(.system(size: 14, design: .rounded)).foregroundStyle(DS.textTertiary).padding(.vertical, 20)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(storeManager.products, id: \.id) { p in
+                        Button { Task { await storeManager.purchase(p) } } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(p.displayName)
+                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(DS.textPrimary)
+                                    Text(durText(p.id))
+                                        .font(.system(size: 12, design: .rounded))
+                                        .foregroundStyle(DS.textTertiary)
+                                }
+                                Spacer()
+                                Text(p.displayPrice)
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .foregroundStyle(DS.accent)
+                            }
+                            .padding(.horizontal, 18).padding(.vertical, 14)
+                            .background(DS.surface, in: RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DS.border, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain).disabled(isPurchasing).padding(.horizontal, 20)
+                    }
+                }
+            }
+            if isPurchasing { ProgressView().tint(DS.accent) }
+            Text("30 min free trial · 20 sec per translation")
+                .font(.system(size: 12, design: .rounded)).foregroundStyle(DS.textTertiary).multilineTextAlignment(.center)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+        .background(DS.bg.ignoresSafeArea())
     }
 
     private var isPurchasing: Bool {
-        if case .purchasing = storeManager.purchaseState {
-            return true
-        }
-
-        return false
+        if case .purchasing = storeManager.purchaseState { return true }; return false
     }
-
-    private func packDurationText(for productID: String) -> String {
-        let seconds = StoreManager.secondsPerProduct[productID] ?? 0
-        let hours = seconds / 3600
-        return "\(hours) hour\(hours == 1 ? "" : "s")"
+    private func durText(_ id: String) -> String {
+        let h = (StoreManager.secondsPerProduct[id] ?? 0) / 3600
+        return "\(h) hour\(h == 1 ? "" : "s") of translation"
     }
 }

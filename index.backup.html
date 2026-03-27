@@ -3,140 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Easy Live Translator</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <title>Translator Game</title>
   <style>
     :root {
-      --bg: #eeebe5;
-      --surface: rgba(255,255,255,0.75);
-      --ring: rgba(0,0,0,0.07);
-      --ring-strong: rgba(0,0,0,0.13);
-      --text: #1c1916;
-      --muted: #8c8278;
-      --accent: #bf3b2b;
-      --accent-warm: #d94f3d;
-      --accent-soft: rgba(191,59,43,0.10);
-      --processing: #4a7fc1;
-      --processing-soft: rgba(74,127,193,0.10);
-      --green: #2d7a4f;
-      --green-soft: rgba(45,122,79,0.10);
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --ring: #2a2a2a;
+      --text: #f5f5f5;
+      --muted: #a1a1aa;
+      --accent: #ef4444;
+      --accent-soft: rgba(239, 68, 68, 0.22);
+      --processing: #60a5fa;
       --size: min(34vw, 180px);
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
-    body {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background: var(--bg);
-      background-image:
-        radial-gradient(ellipse 90% 55% at 50% -5%, rgba(255,248,240,0.85) 0%, transparent 60%),
-        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(215,200,180,0.3) 0%, transparent 55%),
-        radial-gradient(ellipse 40% 35% at 5% 65%, rgba(225,215,205,0.25) 0%, transparent 50%);
-    }
-    .app { width: min(100%, 400px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
-    .app-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; opacity: 0.75; }
-    .lang-row { display: flex; align-items: center; gap: 10px; }
-    .lang-pill {
-      background: var(--surface);
-      border: 1px solid var(--ring-strong);
-      border-radius: 999px;
-      padding: 6px 16px;
-      font-size: 12.5px;
-      font-weight: 500;
-      color: var(--text);
-      letter-spacing: 0.03em;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.85);
-    }
-    .lang-sep { width: 20px; height: 1px; background: var(--ring-strong); opacity: 0.55; }
-    .mic-button {
-      position: relative;
-      width: max(152px, var(--size));
-      aspect-ratio: 1;
-      border: 1px solid var(--ring-strong);
-      border-radius: 999px;
-      background: var(--surface);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      transition: transform 220ms cubic-bezier(0.34,1.56,0.64,1), border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
-      box-shadow:
-        inset 0 2px 0 rgba(255,255,255,0.92),
-        inset 0 -1px 0 rgba(0,0,0,0.04),
-        0 8px 28px rgba(0,0,0,0.09),
-        0 2px 6px rgba(0,0,0,0.06);
-      -webkit-tap-highlight-color: transparent;
-    }
-    .mic-button:hover {
-      transform: scale(1.03);
-      box-shadow: inset 0 2px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(0,0,0,0.04), 0 14px 44px rgba(0,0,0,0.13), 0 3px 10px rgba(0,0,0,0.08);
-    }
-    .mic-button:active { transform: scale(0.965); }
-    .mic-button::before { content: ""; position: absolute; inset: -18px; border-radius: inherit; background: transparent; opacity: 0; transition: opacity 200ms ease; pointer-events: none; }
-    .mic-icon, .spinner { width: 34%; height: 34%; position: relative; z-index: 1; color: var(--text); }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #191919 0%, var(--bg) 45%); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .app { width: min(100%, 420px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
+    .mic-button { position: relative; width: max(140px, var(--size)); aspect-ratio: 1; border: 1px solid var(--ring); border-radius: 999px; background: linear-gradient(180deg, #1d1d1d 0%, var(--surface) 100%); display: grid; place-items: center; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease; box-shadow: 0 16px 50px rgba(0,0,0,0.45); -webkit-tap-highlight-color: transparent; }
+    .mic-button:hover { transform: scale(1.02); }
+    .mic-button:active { transform: scale(0.98); }
+    .mic-button::before { content: ""; position: absolute; inset: -14px; border-radius: inherit; background: transparent; opacity: 0; transition: opacity 180ms ease; pointer-events: none; }
+    .mic-icon, .spinner { width: 36%; height: 36%; position: relative; z-index: 1; }
     .mic-icon svg, .spinner svg { width: 100%; height: 100%; display: block; }
     .spinner { display: none; animation: spin 0.9s linear infinite; }
-    .status { min-height: 1.6em; font-size: clamp(13.5px, 2.2vw, 15.5px); font-weight: 400; color: var(--muted); text-align: center; letter-spacing: 0.01em; transition: color 200ms ease; }
-    #liveButton {
-      font-family: 'Inter', sans-serif;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.18em;
-      color: var(--muted);
-      background: var(--surface);
-      border: 1px solid var(--ring-strong);
-      border-radius: 999px;
-      padding: 7px 20px;
-      cursor: pointer;
-      transition: all 200ms ease;
-      -webkit-tap-highlight-color: transparent;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.85);
-    }
-    #liveButton:hover { color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.85); }
-    .state-recording .status { color: var(--accent-warm); }
-    .state-recording .mic-button {
-      border-color: rgba(191,59,43,0.28);
-      background: linear-gradient(160deg, rgba(255,250,248,0.92) 0%, rgba(255,238,234,0.85) 100%);
-      box-shadow: inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(0,0,0,0.03), 0 0 0 1px rgba(191,59,43,0.12), 0 14px 52px rgba(191,59,43,0.16), 0 4px 16px rgba(191,59,43,0.1);
-    }
-    .state-recording .mic-button::before { opacity: 1; animation: pulse 1.6s ease-out infinite; background: radial-gradient(circle, var(--accent-soft) 0%, transparent 65%); }
-    .state-recording .mic-icon { color: var(--accent); }
-    .state-translating .status, .state-playing .status { color: var(--processing); }
-    .state-translating .mic-button, .state-playing .mic-button {
-      border-color: rgba(74,127,193,0.22);
-      background: linear-gradient(160deg, rgba(247,251,255,0.92) 0%, rgba(232,242,255,0.85) 100%);
-      box-shadow: inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(0,0,0,0.03), 0 0 0 1px rgba(74,127,193,0.1), 0 14px 52px rgba(74,127,193,0.12), 0 4px 16px rgba(74,127,193,0.08);
-    }
+    .status { min-height: 1.5em; font-size: clamp(16px, 2.5vw, 18px); color: var(--muted); text-align: center; letter-spacing: 0.01em; }
+    #liveButton { font-size: 11px; letter-spacing: 0.12em; color: #a1a1aa; background: transparent; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 14px; cursor: pointer; transition: all 180ms ease; -webkit-tap-highlight-color: transparent; }
+    #liveButton:hover { border-color: #3a3a3a; color: #d4d4d8; }
+    .state-recording .status { color: #fecaca; }
+    .state-translating .status { color: #bfdbfe; }
+    .state-playing .status { color: #d4d4d8; }
+    .live-active #liveButton { color: #4ade80; border-color: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.25); }
+    .live-active .mic-button { opacity: 0.35; pointer-events: none; cursor: default; }
+    .live-active.live-calibrating .status { color: #93c5fd; }
+    .live-active.live-idle .status { color: #86efac; }
+    .live-active.live-detecting .status { color: #fef08a; }
+    .live-active.live-recording .status { color: #fecaca; }
+    .live-active.live-processing .status { color: #bfdbfe; }
+    .state-recording .mic-button { border-color: rgba(239,68,68,0.6); box-shadow: 0 0 0 1px rgba(239,68,68,0.2), 0 18px 60px rgba(239,68,68,0.18); }
+    .state-recording .mic-button::before { opacity: 1; animation: pulse 1.4s ease-out infinite; background: radial-gradient(circle, var(--accent-soft) 0%, transparent 65%); }
+    .state-translating .mic-button, .state-playing .mic-button { border-color: rgba(96,165,250,0.45); background: linear-gradient(180deg, #1a2330 0%, #10161f 100%); }
     .state-translating .mic-icon, .state-playing .mic-icon { display: none; }
-    .state-translating .spinner, .state-playing .spinner { display: block; color: var(--processing); }
-    .live-active #liveButton { color: var(--green); border-color: rgba(45,122,79,0.35); background: rgba(242,252,247,0.88); box-shadow: 0 0 0 3px rgba(45,122,79,0.07), 0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.85); }
-    .live-active .mic-button { opacity: 0.3; pointer-events: none; cursor: default; }
-    .live-active.live-calibrating .status { color: var(--processing); }
-    .live-active.live-idle .status { color: var(--green); }
-    .live-active.live-detecting .status { color: #a07020; }
-    .live-active.live-recording .status { color: var(--accent-warm); }
-    .live-active.live-processing .status { color: var(--processing); }
-    @keyframes pulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.16); opacity: 0; } 100% { transform: scale(1.16); opacity: 0; } }
+    .state-translating .spinner, .state-playing .spinner { display: block; }
+    @keyframes pulse { 0% { transform: scale(0.92); opacity: 0.7; } 70% { transform: scale(1.12); opacity: 0; } 100% { transform: scale(1.12); opacity: 0; } }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @media (max-width: 480px) { .app { gap: 20px; } .mic-button { width: min(58vw, 180px); } }
+    @media (max-width: 480px) { .app { gap: 18px; } .mic-button { width: min(56vw, 180px); } }
   </style>
 </head>
 <body>
   <main class="app state-idle" id="app" data-state="idle">
-    <span class="app-label">Easy Live Translator</span>
-    <div class="lang-row">
-      <span class="lang-pill">Ελληνικά</span>
-      <span class="lang-sep"></span>
-      <span class="lang-pill">Português</span>
-    </div>
     <button class="mic-button" id="micButton" type="button" aria-label="Microphone button">
       <span class="mic-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none">
