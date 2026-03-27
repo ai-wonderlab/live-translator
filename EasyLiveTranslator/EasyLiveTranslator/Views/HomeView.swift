@@ -78,10 +78,13 @@ struct HomeView: View {
                                     state = true
                                 }
                                 .onChanged { _ in
+                                    if !engine.isListening && !engine.isProcessing {
+                                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                    }
                                     engine.beginHoldIfNeeded()
                                 }
                                 .onEnded { _ in
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                     Task {
                                         await engine.endHold()
                                     }
