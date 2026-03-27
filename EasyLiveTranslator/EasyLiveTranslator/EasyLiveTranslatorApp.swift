@@ -4,7 +4,10 @@ import SwiftUI
 struct EasyLiveTranslatorApp: App {
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            ZStack {
+                Color.black.ignoresSafeArea(.all)
+                HomeView()
+            }
         }
     }
 }
