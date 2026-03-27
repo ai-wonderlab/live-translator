@@ -77,24 +77,25 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            DS.bg.ignoresSafeArea()
             ambientBackground
 
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
-                Spacer()
+                Spacer(minLength: 12)
                 sphereSection
-                Spacer()
+                Spacer(minLength: 12)
                 translationCard
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 8)
                 creditsRow
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 16)
             }
+            .padding(.top, 4)
         }
+        .background(DS.bg.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .task {
             engine.sourceLanguage = sourceLanguage
@@ -192,9 +193,9 @@ struct HomeView: View {
     // MARK: Sphere + mic
 
     private var sphereSection: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 16) {
             WireSphere(state: micState)
-                .frame(width: 220, height: 220)
+                .frame(width: 165, height: 165)
 
             Text(statusLine)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -219,12 +220,12 @@ struct HomeView: View {
     private var translationCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             if engine.transcript.isEmpty && engine.translationText.isEmpty {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Image(systemName: "text.bubble")
-                        .font(.system(size: 18))
+                        .font(.system(size: 15))
                         .foregroundStyle(DS.textTertiary)
-                    Text("Your translation will appear here")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                    Text("Translation will appear here")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(DS.textTertiary)
                 }
             } else {
@@ -249,7 +250,7 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
+        .padding(16)
         .background(DS.surface, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(DS.border, lineWidth: 1))
         .animation(.easeInOut(duration: 0.3), value: engine.translationText)
