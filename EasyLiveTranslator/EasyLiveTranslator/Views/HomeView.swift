@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Design System
 
@@ -274,6 +275,20 @@ struct HomeView: View {
         .padding(.horizontal, 18).padding(.vertical, 12)
         .background(DS.surface, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(DS.border, lineWidth: 1))
+    }
+
+    // MARK: Full Screen Fix
+
+    private func forceFullScreen() {
+        guard let ws = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = ws.windows.first else { return }
+        let screen = ws.screen
+        window.frame = screen.bounds
+        window.backgroundColor = .black
+        if let root = window.rootViewController {
+            root.view.frame = screen.bounds
+            root.view.backgroundColor = .black
+        }
     }
 
     // MARK: Helpers
