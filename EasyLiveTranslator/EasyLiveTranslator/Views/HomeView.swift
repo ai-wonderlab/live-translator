@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Design System
 
 private enum DS {
-    static let bg            = Color(red: 0.030, green: 0.038, blue: 0.065)
+    static let bg            = Color(red: 0.0, green: 0.0, blue: 0.0)
     static let bgMid         = Color(red: 0.048, green: 0.058, blue: 0.095)
     static let surface       = Color.white.opacity(0.055)
     static let border        = Color.white.opacity(0.08)
