@@ -74,6 +74,8 @@ struct HomeView: View {
     @State private var showingPairSheet  = false
     @State private var showingCreditsSheet = false
     @State private var showOnboarding = false
+    @State private var showPaywall = false
+    @ObservedObject private var auth = AuthManager.shared
     @GestureState private var isPressingMic = false
 
     private var langA: Language { Language(code: langACode) ?? .greek }
@@ -111,6 +113,9 @@ struct HomeView: View {
         }
         .onChange(of: langACode) { _, _ in engine.langA = langA; engine.activeSttLanguage = langA }
         .onChange(of: langBCode) { _, _ in engine.langB = langB }
+        .onChange(of: credits.hasCredits) { _, has in
+            if !has { showPaywall = true }
+        }
         .sheet(isPresented: $showingPairSheet) {
             LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
                 .presentationDetents([.medium, .large])
@@ -119,6 +124,11 @@ struct HomeView: View {
         .sheet(isPresented: $showingCreditsSheet) {
             CreditsPurchaseSheet(storeManager: storeManager, credits: credits)
                 .presentationDetents([.fraction(0.48), .medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallSheet()
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
         .fullScreenCover(isPresented: $showOnboarding) {
@@ -206,14 +216,27 @@ struct HomeView: View {
                 .frame(maxWidth: 280)
                 .animation(.easeInOut(duration: 0.2), value: statusLine)
 
-            MicCapsule(state: micState, isPressed: isPressingMic)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .updating($isPressingMic) { _, s, _ in s = true }
-                        .onChanged { _ in engine.beginHoldIfNeeded() }
-                        .onEnded { _ in Task { await engine.endHold() } }
-                )
+            if !credits.hasCredits {
+                // No credits — show locked mic
+                Button { showPaywall = true } label: {
+                    MicCapsule(state: .idle, isPressed: false)
+                        .overlay(
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.8))
+                        )
+                        .opacity(0.5)
+                }
+            } else {
+                MicCapsule(state: micState, isPressed: isPressingMic)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .updating($isPressingMic) { _, s, _ in s = true }
+                            .onChanged { _ in engine.beginHoldIfNeeded() }
+                            .onEnded { _ in Task { await engine.endHold() } }
+                    )
+            }
         }
     }
 

@@ -1,4 +1,230 @@
 import SwiftUI
+import Supabase
+import AuthenticationServices
+import CryptoKit
+
+// MARK: - Supabase
+
+let supabase = SupabaseClient(
+    supabaseURL: URL(string: "https://ctrddyzybgeyipsslznw.supabase.co")!,
+    supabaseKey: "sb_publishable_1-mGhNHxlREzyaG2XkWn-w_HUo9Z4Yj"
+)
+
+// MARK: - AuthManager
+
+@MainActor
+class AuthManager: ObservableObject {
+    static let shared = AuthManager()
+    @Published var user: User? = nil
+    @Published var isLoading = false
+    @Published var errorMessage: String? = nil
+    var isSignedIn: Bool { user != nil }
+
+    private init() { Task { await refreshSession() } }
+
+    func refreshSession() async {
+        do { self.user = try await supabase.auth.session.user } catch { self.user = nil }
+    }
+
+    func signUp(email: String, password: String) async {
+        isLoading = true; errorMessage = nil
+        do { self.user = try await supabase.auth.signUp(email: email, password: password).user }
+        catch { errorMessage = error.localizedDescription }
+        isLoading = false
+    }
+
+    func signIn(email: String, password: String) async {
+        isLoading = true; errorMessage = nil
+        do { self.user = try await supabase.auth.signIn(email: email, password: password).user }
+        catch { errorMessage = error.localizedDescription }
+        isLoading = false
+    }
+
+    func signInWithApple(idToken: String, nonce: String) async {
+        isLoading = true; errorMessage = nil
+        do {
+            self.user = try await supabase.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            ).user
+        } catch { errorMessage = error.localizedDescription }
+        isLoading = false
+    }
+
+    func signOut() async {
+        try? await supabase.auth.signOut(); self.user = nil
+    }
+}
+
+// MARK: - AuthSheet
+
+struct AuthSheet: View {
+    @ObservedObject private var auth = AuthManager.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var mode: AuthMode = .signIn
+    @State private var email = ""
+    @State private var password = ""
+    @State private var nonce = ""
+
+    enum AuthMode { case signIn, signUp }
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.05, green: 0.05, blue: 0.10).ignoresSafeArea()
+            VStack(spacing: 0) {
+                Capsule().fill(Color.white.opacity(0.2))
+                    .frame(width: 40, height: 4).padding(.top, 12).padding(.bottom, 24)
+                VStack(spacing: 8) {
+                    Text("🌐").font(.system(size: 44))
+                    Text(mode == .signIn ? "Welcome back" : "Create account")
+                        .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                    Text("30 minutes free · No credit card required")
+                        .font(.system(size: 13, design: .rounded)).foregroundStyle(.white.opacity(0.5))
+                }.padding(.bottom, 32)
+
+                VStack(spacing: 12) {
+                    SignInWithAppleButton(
+                        mode == .signIn ? .signIn : .signUp,
+                        onRequest: { req in
+                            let n = randomNonce(); nonce = n
+                            req.requestedScopes = [.fullName, .email]
+                            req.nonce = sha256(n)
+                        },
+                        onCompletion: { result in
+                            if case .success(let a) = result,
+                               let cred = a.credential as? ASAuthorizationAppleIDCredential,
+                               let tok = cred.identityToken,
+                               let str = String(data: tok, encoding: .utf8) {
+                                Task { await AuthManager.shared.signInWithApple(idToken: str, nonce: nonce) }
+                            }
+                        }
+                    )
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 50).cornerRadius(12)
+
+                    HStack {
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                        Text("or").font(.system(size: 12)).foregroundStyle(.white.opacity(0.4))
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                    }
+
+                    TextField("Email", text: $email)
+                        .keyboardType(.emailAddress).autocapitalization(.none)
+                        .padding(14).background(Color.white.opacity(0.07)).cornerRadius(12).foregroundStyle(.white)
+                    SecureField("Password", text: $password)
+                        .padding(14).background(Color.white.opacity(0.07)).cornerRadius(12).foregroundStyle(.white)
+
+                    if let err = auth.errorMessage {
+                        Text(err).font(.system(size: 12)).foregroundStyle(.red.opacity(0.8)).multilineTextAlignment(.center)
+                    }
+
+                    Button {
+                        Task {
+                            if mode == .signIn { await auth.signIn(email: email, password: password) }
+                            else { await auth.signUp(email: email, password: password) }
+                            if auth.isSignedIn { dismiss() }
+                        }
+                    } label: {
+                        ZStack {
+                            if auth.isLoading { ProgressView().tint(.black) }
+                            else {
+                                Text(mode == .signIn ? "Sign In" : "Create Account")
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(.black)
+                            }
+                        }
+                        .frame(maxWidth: .infinity).frame(height: 50)
+                        .background(Color(red: 0.20, green: 0.82, blue: 0.90)).cornerRadius(12)
+                    }
+                    .disabled(auth.isLoading || email.isEmpty || password.isEmpty)
+
+                    Button { mode = mode == .signIn ? .signUp : .signIn; auth.errorMessage = nil } label: {
+                        Text(mode == .signIn ? "Don't have an account? Sign up" : "Already have an account? Sign in")
+                            .font(.system(size: 13, design: .rounded)).foregroundStyle(.white.opacity(0.5))
+                    }
+                }.padding(.horizontal, 24)
+                Spacer()
+            }
+        }
+    }
+
+    private func randomNonce(length: Int = 32) -> String {
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        return String((0..<length).map { _ in charset.randomElement()! })
+    }
+    private func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8)).compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - PaywallSheet
+
+struct PaywallSheet: View {
+    @ObservedObject private var auth = AuthManager.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var showAuth = false
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.05, green: 0.05, blue: 0.10).ignoresSafeArea()
+            VStack(spacing: 0) {
+                Capsule().fill(Color.white.opacity(0.2))
+                    .frame(width: 40, height: 4).padding(.top, 12).padding(.bottom, 24)
+                VStack(spacing: 10) {
+                    Text("⏱️").font(.system(size: 48))
+                    Text("Your free 30 minutes are up")
+                        .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundStyle(.white).multilineTextAlignment(.center)
+                    Text("Create a free account to continue\nand purchase translation time.")
+                        .font(.system(size: 14, design: .rounded)).foregroundStyle(.white.opacity(0.5)).multilineTextAlignment(.center)
+                }.padding(.horizontal, 24).padding(.bottom, 28)
+
+                VStack(spacing: 10) {
+                    planRow(hours: 1,  price: "€0.99")
+                    planRow(hours: 5,  price: "€3.99")
+                    planRow(hours: 10, price: "€6.99")
+                    planRow(hours: 50, price: "€24.99")
+                }.padding(.horizontal, 24).padding(.bottom, 24)
+
+                if auth.isSignedIn {
+                    Button { dismiss() } label: { ctaLabel("Purchase Hours") }
+                        .padding(.horizontal, 24)
+                } else {
+                    Button { showAuth = true } label: { ctaLabel("Create Free Account") }
+                        .padding(.horizontal, 24)
+                }
+                Spacer()
+            }
+        }
+        .sheet(isPresented: $showAuth) {
+            AuthSheet().presentationDetents([.large])
+        }
+    }
+
+    @ViewBuilder
+    private func ctaLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(.black)
+            .frame(maxWidth: .infinity).frame(height: 50)
+            .background(Color(red: 0.20, green: 0.82, blue: 0.90)).cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private func planRow(hours: Int, price: String) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(hours) hour\(hours > 1 ? "s" : "")")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(.white)
+                Text("~\(hours * 60) translations")
+                    .font(.system(size: 12, design: .rounded)).foregroundStyle(.white.opacity(0.45))
+            }
+            Spacer()
+            Text(price)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 0.20, green: 0.82, blue: 0.90))
+        }
+        .padding(14).background(Color.white.opacity(0.06)).cornerRadius(12)
+    }
+}
+
+// MARK: - App Entry Point
 
 @main
 struct EasyLiveTranslatorApp: App {

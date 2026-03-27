@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		49B1F86C2F76CDF80065DC5B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 49B1F86B2F76CDF80065DC5B /* Supabase */; };
+		49B1F86E2F76CE090065DC5B /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 49B1F86D2F76CE090065DC5B /* Auth */; };
 		A00000000000000000000001 /* EasyLiveTranslatorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* EasyLiveTranslatorApp.swift */; };
 		A00000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* ContentView.swift */; };
 		A00000000000000000000003 /* TranslationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* TranslationEngine.swift */; };
@@ -48,16 +50,26 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49B1F86E2F76CE090065DC5B /* Auth in Frameworks */,
+				49B1F86C2F76CDF80065DC5B /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		49B1F86A2F76CDF80065DC5B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		A00000000000000000000030 = {
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000031 /* EasyLiveTranslator */,
+				49B1F86A2F76CDF80065DC5B /* Frameworks */,
 				A00000000000000000000032 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -169,6 +181,9 @@
 				Base,
 			);
 			mainGroup = A00000000000000000000030;
+			packageReferences = (
+				49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			productRefGroup = A00000000000000000000032 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -319,6 +334,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		49B1F86B2F76CDF80065DC5B /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		49B1F86D2F76CE090065DC5B /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49B1F8692F76CBDC0065DC5B /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A00000000000000000000060 /* Project object */;
 }
