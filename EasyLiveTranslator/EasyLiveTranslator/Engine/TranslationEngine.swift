@@ -11,6 +11,9 @@ final class TranslationEngine: ObservableObject {
     @Published var isProcessing = false
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
+    private var lastTranslationAt: Date = .distantPast
+    private static let translationCooldown: TimeInterval = 2.0
+    @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
 
     private let speechRecognizer = SpeechRecognizer()
@@ -59,7 +62,8 @@ final class TranslationEngine: ObservableObject {
     }
 
     func beginHoldIfNeeded() {
-        guard permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing else { return }
+        guard permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing,
+              Date().timeIntervalSince(lastTranslationAt) >= Self.translationCooldown else { return }
         do {
             transcript = ""
             translationText = ""
@@ -95,7 +99,23 @@ final class TranslationEngine: ObservableObject {
                 targetLanguage: targetLanguage
             )
             translationText = response.translation
+            // If backend detected the opposite language, silently swap source/target
+            if let detectedLanguage = Language(code: response.detected),
+               detectedLanguage != sourceLanguage {
+                (sourceLanguage, targetLanguage) = (targetLanguage, sourceLanguage)
+            }
             credits.deductTranslation()
+            lastTranslationAt = Date()
+            history.insert(
+                TranslationEntry(
+                    spokenText: recognized,
+                    translatedText: response.translation,
+                    sourceLanguage: sourceLanguage,
+                    targetLanguage: targetLanguage,
+                    date: Date()
+                ),
+                at: 0
+            )
             await speechSynthesizer.speak(response.translation, language: targetLanguage)
 
             let elapsed = Date().timeIntervalSince(startedAt)
