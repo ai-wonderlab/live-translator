@@ -422,6 +422,63 @@ private struct TranslationEntryRow: View {
 }
 
 
+#if DEBUG
+private struct MockProduct {
+    let id: String
+    let displayName: String
+    let displayPrice: String
+    let seconds: Int
+}
+
+private struct MockProductsView: View {
+    @ObservedObject var credits: CreditManager
+
+    private let mockProducts: [MockProduct] = [
+        MockProduct(id: "gr.easyfair.credits.1h",  displayName: "1 Hour",   displayPrice: "$0.99",  seconds: 3600),
+        MockProduct(id: "gr.easyfair.credits.5h",  displayName: "5 Hours",  displayPrice: "$3.99",  seconds: 18000),
+        MockProduct(id: "gr.easyfair.credits.10h", displayName: "10 Hours", displayPrice: "$9.99",  seconds: 36000),
+        MockProduct(id: "gr.easyfair.credits.50h", displayName: "50 Hours", displayPrice: "$24.99", seconds: 180000),
+    ]
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("SIMULATOR — Mock Products")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(.yellow.opacity(0.7))
+                .padding(.bottom, 2)
+
+            ForEach(mockProducts, id: \.id) { product in
+                Button {
+                    credits.addSeconds(product.seconds)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(product.displayName)
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("\(product.seconds / 3600) hour\(product.seconds / 3600 == 1 ? "" : "s")")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        Spacer()
+                        Text(product.displayPrice)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(Color.yellow.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+            }
+        }
+    }
+}
+#endif
+
+
 private struct CreditsPurchaseSheet: View {
     @ObservedObject var storeManager: StoreManager
     @ObservedObject var credits: CreditManager
@@ -454,11 +511,21 @@ private struct CreditsPurchaseSheet: View {
             }
 
             if storeManager.products.isEmpty {
-                Text("Products load from App Store Connect or a StoreKit configuration in sandbox.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.64))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                #if DEBUG
+                MockProductsView(credits: credits)
+                #else
+                VStack(spacing: 8) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.white.opacity(0.4))
+                    Text("Store unavailable. Check your connection and try again.")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+                .padding(.vertical, 8)
+                #endif
             } else {
                 ForEach(storeManager.products, id: \.id) { product in
                     Button {
@@ -504,6 +571,16 @@ private struct CreditsPurchaseSheet: View {
                 .foregroundStyle(.white.opacity(0.64))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
+
+            Button {
+                Task { await storeManager.restorePurchases() }
+            } label: {
+                Text("Restore Purchases")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.45))
+            }
+            .buttonStyle(.plain)
+            .disabled(isPurchasing)
 
             Spacer()
         }
