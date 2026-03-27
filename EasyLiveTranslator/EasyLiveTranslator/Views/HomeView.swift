@@ -146,29 +146,32 @@ struct HomeView: View {
     // MARK: Top bar
 
     private var topBar: some View {
-        Button { showingPairSheet = true } label: {
-            HStack(spacing: 10) {
-                Text(langA.flag).font(.system(size: 22))
-                Text(langA.displayName)
+        HStack(spacing: 10) {
+            langPill(langA, slot: 1)
+            langPill(langB, slot: 2)
+        }
+    }
+
+    private func langPill(_ lang: Language, slot: Int) -> some View {
+        Button {
+            // Open pair sheet pre-selecting this slot
+            showingPairSheet = true
+        } label: {
+            HStack(spacing: 8) {
+                Text(lang.flag).font(.system(size: 22))
+                Text(lang.displayName)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(DS.textPrimary)
-                Image(systemName: "arrow.left.arrow.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(DS.accent)
-                    .padding(.horizontal, 4)
-                Text(langB.flag).font(.system(size: 22))
-                Text(langB.displayName)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
+                    .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 11))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(DS.textTertiary)
-                    .padding(.leading, 2)
             }
-            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
             .padding(.vertical, 13)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(DS.borderBright, lineWidth: 1))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.borderBright, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -423,12 +426,8 @@ struct LanguagePairSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Pair preview
-                HStack(spacing: 0) {
+                HStack(spacing: 12) {
                     pairSlot(code: langACode, slot: 1)
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(DS.accent)
-                        .frame(width: 44)
                     pairSlot(code: langBCode, slot: 2)
                 }
                 .padding(.horizontal, 20)
@@ -475,20 +474,18 @@ struct LanguagePairSheet: View {
 
     private func pairSlot(code: String, slot: Int) -> some View {
         let lang = Language(code: code) ?? .greek
+        let isActive = selecting == slot
         return Button { selecting = slot } label: {
-            VStack(spacing: 4) {
-                Text(lang.flag).font(.system(size: 28))
+            VStack(spacing: 5) {
+                Text(lang.flag).font(.system(size: 30))
                 Text(lang.displayName)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
-                Text(selecting == slot ? "← tap list" : "tap to change")
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundStyle(selecting == slot ? DS.accent : DS.textTertiary)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(isActive ? DS.textPrimary : DS.textSecondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(selecting == slot ? DS.accentSoft : DS.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selecting == slot ? DS.accent.opacity(0.3) : DS.border, lineWidth: 1))
+            .padding(.vertical, 14)
+            .background(isActive ? DS.accentSoft : DS.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(isActive ? DS.accent.opacity(0.4) : DS.border, lineWidth: isActive ? 1.5 : 1))
         }
         .buttonStyle(.plain)
     }
