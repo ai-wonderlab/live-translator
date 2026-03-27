@@ -79,25 +79,28 @@ struct HomeView: View {
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
-        ZStack {
-            DS.bg.ignoresSafeArea()
-            ambientBackground.ignoresSafeArea()
+        GeometryReader { geo in
+            ZStack {
+                DS.bg.ignoresSafeArea()
+                ambientBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                Spacer(minLength: 12)
-                sphereSection
-                Spacer(minLength: 12)
-                translationCard
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                creditsRow
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+                VStack(spacing: 0) {
+                    topBar
+                        .padding(.horizontal, 20)
+                        .padding(.top, geo.safeAreaInsets.top + 8)
+                    Spacer(minLength: 12)
+                    sphereSection
+                    Spacer(minLength: 12)
+                    translationCard
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 8)
+                    creditsRow
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, geo.safeAreaInsets.bottom + 8)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.top, 4)
+            .ignoresSafeArea()
         }
         .preferredColorScheme(.dark)
         .task {
@@ -112,7 +115,7 @@ struct HomeView: View {
         .onChange(of: langBCode) { _, _ in engine.langB = langB }
         .sheet(isPresented: $showingPairSheet) {
             LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingCreditsSheet) {
