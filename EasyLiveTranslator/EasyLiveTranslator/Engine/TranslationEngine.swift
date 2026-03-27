@@ -68,7 +68,10 @@ final class TranslationEngine: ObservableObject {
             transcript = ""
             translationText = ""
             errorMessage = nil
-            try speechRecognizer.startListening(language: sourceLanguage)
+            // Auto-detect: use device locale for STT; OpenAI detects actual language
+            let localeCode = Locale.current.language.languageCode?.identifier ?? ""
+            let sttLanguage = Language(code: localeCode) ?? sourceLanguage
+            try speechRecognizer.startListening(language: sttLanguage)
             isListening = true
         } catch {
             errorMessage = error.localizedDescription

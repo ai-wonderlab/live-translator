@@ -142,52 +142,44 @@ struct HomeView: View {
     // MARK: Top bar
 
     private var topBar: some View {
-        HStack(spacing: 0) {
-            languagePill(sourceLanguage, role: "FROM")
-            swapButton.padding(.horizontal, 10)
-            languagePill(targetLanguage, role: "TO")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(DS.borderBright, lineWidth: 1))
-        .onTapGesture { showingLanguageSheet = true }
-    }
+        Button { showingLanguageSheet = true } label: {
+            HStack(spacing: 12) {
+                // Auto-detect badge
+                HStack(spacing: 6) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DS.accent)
+                    Text("AUTO")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(1.4)
+                        .foregroundStyle(DS.accent)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(DS.accentSoft, in: Capsule())
+                .overlay(Capsule().strokeBorder(DS.accent.opacity(0.2), lineWidth: 1))
 
-    private func languagePill(_ lang: Language, role: String) -> some View {
-        HStack(spacing: 10) {
-            Text(lang.flag).font(.system(size: 26))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(role)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(DS.accent)
-                    .tracking(1.5)
-                Text(lang.displayName)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DS.textTertiary)
 
-    private var swapButton: some View {
-        Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
-                engine.swapLanguages()
-                let tmp = sourceLanguageCode
-                sourceLanguageCode = targetLanguageCode
-                targetLanguageCode = tmp
+                // Target language
+                HStack(spacing: 8) {
+                    Text(targetLanguage.flag).font(.system(size: 22))
+                    Text(targetLanguage.displayName)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DS.textPrimary)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DS.textTertiary)
+                }
             }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } label: {
-            Image(systemName: "arrow.left.arrow.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DS.accent)
-                .frame(width: 40, height: 40)
-                .background(DS.accentSoft, in: Circle())
-                .overlay(Circle().strokeBorder(DS.accent.opacity(0.22), lineWidth: 1))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 13)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
+            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(DS.borderBright, lineWidth: 1))
         }
-        .disabled(engine.isListening || engine.isProcessing)
+        .buttonStyle(.plain)
     }
 
     // MARK: Sphere + mic
@@ -229,17 +221,6 @@ struct HomeView: View {
                         .foregroundStyle(DS.textTertiary)
                 }
             } else {
-                if !engine.transcript.isEmpty {
-                    cardLabel("Original", icon: "waveform", color: DS.textTertiary)
-                    Text(engine.transcript)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(DS.textSecondary)
-                        .lineLimit(2)
-                        .padding(.bottom, 12)
-                }
-                if !engine.transcript.isEmpty && !engine.translationText.isEmpty {
-                    Divider().background(DS.border).padding(.bottom, 12)
-                }
                 if !engine.translationText.isEmpty {
                     cardLabel("Translation", icon: "text.bubble", color: DS.accent.opacity(0.85))
                     Text(engine.translationText)

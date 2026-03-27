@@ -34,7 +34,7 @@ struct TranslationAPI {
         request.httpBody = try JSONEncoder().encode(
             TranslateRequest(
                 text: text,
-                sourceLang: sourceLanguage.code,
+                sourceLang: "auto",
                 targetLang: targetLanguage.code
             )
         )
