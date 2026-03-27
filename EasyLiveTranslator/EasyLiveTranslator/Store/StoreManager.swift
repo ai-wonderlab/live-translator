@@ -12,17 +12,17 @@ final class StoreManager: ObservableObject {
     }
 
     static let productIDs = [
-        "com.aiwonderlab.easylivetranslator.hours.1",
-        "com.aiwonderlab.easylivetranslator.hours.5",
-        "com.aiwonderlab.easylivetranslator.hours.20",
-        "com.aiwonderlab.easylivetranslator.hours.50",
+        "gr.easyfair.credits.1h",
+        "gr.easyfair.credits.5h",
+        "gr.easyfair.credits.10h",
+        "gr.easyfair.credits.50h",
     ]
 
     static let secondsPerProduct = [
-        "com.aiwonderlab.easylivetranslator.hours.1": 3600,
-        "com.aiwonderlab.easylivetranslator.hours.5": 18000,
-        "com.aiwonderlab.easylivetranslator.hours.20": 72000,
-        "com.aiwonderlab.easylivetranslator.hours.50": 180000,
+        "gr.easyfair.credits.1h": 3600,
+        "gr.easyfair.credits.5h": 18000,
+        "gr.easyfair.credits.10h": 36000,
+        "gr.easyfair.credits.50h": 180000,
     ]
 
     @Published private(set) var products: [Product] = []

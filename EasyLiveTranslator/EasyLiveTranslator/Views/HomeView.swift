@@ -21,47 +21,67 @@ struct HomeView: View {
 
             VStack(spacing: 20) {
                 // Language picker — top
-                Button {
-                    showingLanguageSheet = true
-                } label: {
-                    HStack(spacing: 14) {
+                HStack(spacing: 14) {
+                    Button {
+                        showingLanguageSheet = true
+                    } label: {
                         languageBadge(sourceLanguage)
+                    }
+                    .buttonStyle(.plain)
 
+                    Button {
+                        engine.swapLanguages()
+                        sourceLanguageCode = engine.sourceLanguage.code
+                        targetLanguageCode = engine.targetLanguage.code
+                    } label: {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.75))
+                            .padding(10)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(engine.isListening || engine.isProcessing)
 
+                    Button {
+                        showingLanguageSheet = true
+                    } label: {
                         languageBadge(targetLanguage)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 16)
-                    .background(Color.white.opacity(0.06))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .background(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24))
 
                 Spacer()
 
                 // Mic section — center
                 VStack(spacing: 18) {
-                    WaveformRow(isAnimating: engine.isListening)
+                    WaveformRow(isAnimating: engine.isListening, audioLevel: engine.audioLevel)
 
                     MicButton(state: micState, isPressed: isPressingMic)
                         .contentShape(Circle())
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .updating($isPressingMic) { _, state, _ in
+                                    if !state {
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    }
                                     state = true
                                 }
                                 .onChanged { _ in
                                     engine.beginHoldIfNeeded()
                                 }
                                 .onEnded { _ in
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     Task {
                                         await engine.endHold()
                                     }
@@ -78,26 +98,8 @@ struct HomeView: View {
 
                 Spacer()
 
-                // Translation result — bottom
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Last translation")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.45))
-
-                    Text(lastTranslationText)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(engine.translationText.isEmpty ? 0.34 : 0.88))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(4)
-                }
-                .padding(20)
-                .background(Color.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 24))
+                // Translation history — bottom
+                TranslationHistoryView(history: engine.history)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -193,9 +195,7 @@ struct HomeView: View {
         engine.errorMessage == nil ? .white.opacity(0.64) : .red.opacity(0.85)
     }
 
-    private var lastTranslationText: String {
-        engine.translationText.isEmpty ? "Your latest translation will appear here." : engine.translationText
-    }
+
 
     private func languageBadge(_ language: Language) -> some View {
         HStack(spacing: 10) {
@@ -218,26 +218,37 @@ struct HomeView: View {
 
 private struct WaveformRow: View {
     let isAnimating: Bool
+    let audioLevel: Float
 
-    // idle heights give a recognizable "audio bar" silhouette — not dots
-    private let idleHeights: [CGFloat] = [10, 16, 10]
-    private let activeHeights: [CGFloat] = [16, 28, 20]
+    // Per-bar multipliers give a natural asymmetric shape
+    private let barMultipliers: [Double] = [0.5, 0.7, 0.9, 1.0, 0.95, 0.75, 0.85, 0.65, 0.45]
+    private let barCount = 9
+    private let minHeight: CGFloat = 4
+    private let maxHeight: CGFloat = 36
+
+    private func height(for index: Int) -> CGFloat {
+        let multiplier = barMultipliers[index]
+        if isAnimating {
+            let level = Double(audioLevel)
+            // Boost low levels so there's always some movement when recording
+            let boosted = level < 0.05 ? 0.15 + level : level
+            let h = minHeight + CGFloat(boosted * multiplier) * (maxHeight - minHeight)
+            return max(minHeight, min(maxHeight, h))
+        }
+        return minHeight + CGFloat(multiplier) * 6
+    }
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<3, id: \.self) { index in
+        HStack(spacing: 4) {
+            ForEach(0..<barCount, id: \.self) { index in
                 Capsule()
-                    .fill(Color.white.opacity(isAnimating ? 0.85 : 0.25))
-                    .frame(width: 4, height: isAnimating ? activeHeights[index] : idleHeights[index])
-                    .animation(
-                        isAnimating
-                            ? .easeInOut(duration: 0.55).repeatForever().delay(Double(index) * 0.08)
-                            : .easeInOut(duration: 0.2),
-                        value: isAnimating
-                    )
+                    .fill(Color.white.opacity(isAnimating ? 0.75 + Double(audioLevel) * 0.25 : 0.2))
+                    .frame(width: 3, height: height(for: index))
+                    .animation(.easeOut(duration: isAnimating ? 0.08 : 0.3), value: audioLevel)
+                    .animation(.easeInOut(duration: 0.25), value: isAnimating)
             }
         }
-        .frame(height: 28)
+        .frame(height: maxHeight + 4)
     }
 }
 
@@ -305,6 +316,24 @@ private struct LanguagePickerSheet: View {
                                 }
 
                                 Spacer(minLength: 0)
+
+                                if sourceLanguageCode == language.code {
+                                    Text("FROM")
+                                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.blue.opacity(0.7))
+                                        .clipShape(Capsule())
+                                } else if targetLanguageCode == language.code {
+                                    Text("TO")
+                                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.green.opacity(0.6))
+                                        .clipShape(Capsule())
+                                }
                             }
                             .padding(14)
                             .background(cellBackground(for: language))
@@ -346,6 +375,68 @@ private struct LanguagePickerSheet: View {
         return isSelected ? Color.white.opacity(0.12) : Color.white.opacity(0.05)
     }
 }
+
+private struct TranslationHistoryView: View {
+    let history: [TranslationEntry]
+
+    var body: some View {
+        Group {
+            if history.isEmpty {
+                EmptyView()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(history) { entry in
+                            TranslationEntryRow(entry: entry)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .frame(maxHeight: 240)
+                .background(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+            }
+        }
+    }
+}
+
+private struct TranslationEntryRow: View {
+    let entry: TranslationEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(entry.sourceLanguage.flag)
+                    .font(.system(size: 13))
+                Text(entry.spokenText)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 6) {
+                Text(entry.targetLanguage.flag)
+                    .font(.system(size: 15))
+                Text(entry.translatedText)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 8)
+    }
+}
+
 
 private struct CreditsPurchaseSheet: View {
     @ObservedObject var storeManager: StoreManager
