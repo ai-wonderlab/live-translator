@@ -11,6 +11,8 @@ final class TranslationEngine: ObservableObject {
     @Published var isProcessing = false
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
+    private var lastTranslationAt: Date = .distantPast
+    private static let translationCooldown: TimeInterval = 2.0
     @Published var permissionsGranted = false
 
     private let speechRecognizer = SpeechRecognizer()
@@ -59,7 +61,8 @@ final class TranslationEngine: ObservableObject {
     }
 
     func beginHoldIfNeeded() {
-        guard permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing else { return }
+        guard permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing,
+              Date().timeIntervalSince(lastTranslationAt) >= Self.translationCooldown else { return }
         do {
             transcript = ""
             translationText = ""
@@ -96,6 +99,7 @@ final class TranslationEngine: ObservableObject {
             )
             translationText = response.translation
             credits.deductTranslation()
+            lastTranslationAt = Date()
             await speechSynthesizer.speak(response.translation, language: targetLanguage)
 
             let elapsed = Date().timeIntervalSince(startedAt)
