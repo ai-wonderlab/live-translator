@@ -105,8 +105,8 @@ final class TranslationEngine: ObservableObject {
 
             let response = try await api.translate(
                 text: recognized,
-                sourceLanguage: sourceLanguage,
-                targetLanguage: targetLanguage
+                langA: langA,
+                langB: langB
             )
             translationText = response.translation
             let detected = Language(code: response.detected ?? "") ?? activeSttLanguage

@@ -19,9 +19,11 @@ struct TranslationAPI {
 
     func translate(
         text: String,
-        sourceLanguage: Language,
-        targetLanguage: Language
+        langA: Language,
+        langB: Language
     ) async throws -> TranslationResult {
+        let sourceLanguage = langA
+        let targetLanguage = langB
         guard let appSecret = Bundle.main.object(forInfoDictionaryKey: "TranslationAPIAppSecret") as? String,
               !appSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw TranslationAPIError.missingAppSecret
@@ -34,8 +36,8 @@ struct TranslationAPI {
         request.httpBody = try JSONEncoder().encode(
             TranslateRequest(
                 text: text,
-                sourceLang: "auto",
-                targetLang: targetLanguage.code
+                sourceLang: langA.code,
+                targetLang: langB.code
             )
         )
 
