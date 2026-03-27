@@ -12,17 +12,17 @@ final class StoreManager: ObservableObject {
     }
 
     static let productIDs = [
-        "com.aiwonderlab.easylivetranslator.hours.1",
-        "com.aiwonderlab.easylivetranslator.hours.5",
-        "com.aiwonderlab.easylivetranslator.hours.20",
-        "com.aiwonderlab.easylivetranslator.hours.50",
+        "gr.easyfair.credits.1h",
+        "gr.easyfair.credits.5h",
+        "gr.easyfair.credits.10h",
+        "gr.easyfair.credits.50h",
     ]
 
     static let secondsPerProduct = [
-        "com.aiwonderlab.easylivetranslator.hours.1": 3600,
-        "com.aiwonderlab.easylivetranslator.hours.5": 18000,
-        "com.aiwonderlab.easylivetranslator.hours.20": 72000,
-        "com.aiwonderlab.easylivetranslator.hours.50": 180000,
+        "gr.easyfair.credits.1h": 3600,
+        "gr.easyfair.credits.5h": 18000,
+        "gr.easyfair.credits.10h": 36000,
+        "gr.easyfair.credits.50h": 180000,
     ]
 
     @Published private(set) var products: [Product] = []
@@ -70,6 +70,27 @@ final class StoreManager: ObservableObject {
             }
         } catch {
             purchaseState = .failed(error.localizedDescription)
+        }
+    }
+
+    func restorePurchases() async {
+        purchaseState = .loading
+        var restoredSeconds = 0
+
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let transaction) = result {
+                let seconds = Self.secondsPerProduct[transaction.productID] ?? 0
+                if seconds > 0 {
+                    restoredSeconds += seconds
+                }
+            }
+        }
+
+        if restoredSeconds > 0 {
+            CreditManager.shared.addSeconds(restoredSeconds)
+            purchaseState = .success("+\(restoredSeconds / 60) min restored")
+        } else {
+            purchaseState = .success("No purchases to restore.")
         }
     }
 

@@ -27,6 +27,7 @@ final class SpeechRecognizer {
     private var finalContinuation: CheckedContinuation<String, Error>?
     private var latestTranscript = ""
     private var tapInstalled = false
+    var onAudioLevel: ((Float) -> Void)?
 
     func requestPermissions() async -> Bool {
         let speechAuthorized = await withCheckedContinuation { continuation in
@@ -67,6 +68,17 @@ final class SpeechRecognizer {
         let format = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
+            // Compute RMS audio level for waveform visualization
+            if let channelData = buffer.floatChannelData?[0] {
+                let frameLength = Int(buffer.frameLength)
+                guard frameLength > 0 else { return }
+                var sum: Float = 0
+                for i in 0..<frameLength { sum += channelData[i] * channelData[i] }
+                let rms = sqrt(sum / Float(frameLength))
+                let db = 20 * log10(max(rms, 1e-7))
+                let normalized = Float(max(0.0, min(1.0, (db + 50) / 50)))
+                DispatchQueue.main.async { self?.onAudioLevel?(normalized) }
+            }
         }
         tapInstalled = true
 
@@ -103,6 +115,7 @@ final class SpeechRecognizer {
         audioEngine.stop()
         removeTapIfInstalled()
         recognitionRequest?.endAudio()
+        onAudioLevel?(0)
 
         return try await withCheckedThrowingContinuation { continuation in
             finalContinuation = continuation

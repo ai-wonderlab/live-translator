@@ -2,12 +2,15 @@ import Foundation
 
 enum TranslationAPIError: LocalizedError {
     case missingAppSecret
+    case noInternet
     case server(String)
 
     var errorDescription: String? {
         switch self {
         case .missingAppSecret:
             return "Translation API secret is missing from the app configuration."
+        case .noInternet:
+            return "No internet connection. Please check your network and try again."
         case .server(let message):
             return message
         }
@@ -40,7 +43,18 @@ struct TranslationAPI {
         )
 
         print("[API] → POST /translate")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let urlError as URLError where [
+            .notConnectedToInternet,
+            .networkConnectionLost,
+            .timedOut,
+            .cannotConnectToHost,
+            .dnsLookupFailed
+        ].contains(urlError.code) {
+            throw TranslationAPIError.noInternet
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
