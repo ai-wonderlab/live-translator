@@ -61,7 +61,12 @@ class AuthManager: ObservableObject {
             )
             await refreshSession()
         } catch {
-            errorMessage = error.localizedDescription
+            let msg = error.localizedDescription
+            if msg.localizedCaseInsensitiveContains("provider") || msg.localizedCaseInsensitiveContains("not enabled") {
+                errorMessage = "Google Sign In is coming soon."
+            } else {
+                errorMessage = msg
+            }
         }
         isLoading = false
     }
