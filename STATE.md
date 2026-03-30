@@ -1,5 +1,5 @@
-# STATE.md — Easy Live Translator
-_Last updated: 2026-03-27 16:48_
+# STATE.md — Live Translator (πρώην Easy Live Translator)
+_Last updated: 2026-03-30 11:30_
 
 ---
 
@@ -7,13 +7,13 @@ _Last updated: 2026-03-27 16:48_
 
 ---
 
-## ✅ Έτοιμο (merged to main `2dbbe9b`)
+## ✅ Έτοιμο (merged to main)
 
 | Feature | Περιγραφή |
 |---------|-----------|
 | Wire Sphere UI | Dark navy/black bg, animated rings, cyan accent, state glow |
 | Conversation Mode | langA + langB pills, auto-detect ποια γλώσσα μιλήθηκε |
-| 38 Γλώσσες | +Albanian, Romanian, Ukrainian, Bulgarian, Croatian, Czech, Hungarian, Slovak, Serbian, Hebrew, Thai, Vietnamese, Indonesian, Malay, Catalan, Filipino, Chinese Traditional |
+| 38 Γλώσσες | Full list incl. Albanian, Romanian, Ukrainian κτλ |
 | Supabase Auth | Apple Sign In + email/password — λειτουργικό |
 | ProfileSheet | Person icon στο creditsRow, πάντα ορατό |
 | PaywallSheet | Trigger όταν credits=0, 4 plans (€0.99/3.99/6.99/24.99) |
@@ -22,28 +22,39 @@ _Last updated: 2026-03-27 16:48_
 
 ---
 
-## 🔴 Ανοιχτά — για αύριο
+## 🔀 Branches έτοιμα για PR/merge
+
+| Branch | Περιγραφή |
+|--------|-----------|
+| `fix/tts-language-fallback` | TTS voice fallback chain — fr-FR → fr → any fr voice |
+| `fix/full-screen-ios26` | SceneDelegate manual UIWindow, forceFullScreen on appear |
+| `feat/google-signin` | Google Sign In via ASWebAuthenticationSession |
+| `chore/rename-to-live-translator` | App display name → "Live Translator" |
+
+---
+
+## 🔴 Ανοιχτά
 
 ### 1. Payment Flow 💳
-- **Απόφαση αφεντικού**: Stripe vs StoreKit (Apple IAP)
-- Τα plans είναι placeholder: €0.99 / €3.99 / €6.99 / €24.99
-- Μόλις αποφασιστεί, συνδέουμε το "Purchase Hours" button
+- **Απόφαση**: StoreKit (Apple IAP) ✅
 - Product IDs έτοιμα: `gr.easyfair.credits.1h/5h/10h/50h`
+- **Εκκρεμεί**: Δημιουργία products στο App Store Connect
+- StoreManager.swift είναι ήδη πλήρως υλοποιημένο
 
 ### 2. Apple Sign In — Supabase Setup 🍎
-- Πρέπει να ενεργοποιηθεί στο Supabase dashboard:
-  **Authentication → Providers → Apple → Enable**
-- Χρειάζεται Apple Developer: Service ID + Key
+- Κώδικας υπάρχει ήδη
+- **Εκκρεμεί**: Supabase dashboard → Apple → Enable (χρειάζεται κινητό για 2FA)
+- **Εκκρεμεί**: Apple Developer Service ID + Key
 
 ### 3. Google Sign In 🔐
-- Δεν υλοποιήθηκε ακόμα
-- Χρειάζεται: Google OAuth Client ID για iOS
-- Μετά: προσθήκη στο AuthSheet
+- Κώδικας υλοποιημένος (ASWebAuthenticationSession)
+- **Εκκρεμεί**: Google Console OAuth Client ID (bundle: gr.easyfair.EasyLiveTranslator)
+- **Εκκρεμεί**: Supabase dashboard → Google → Enable + Client ID/Secret
 
 ### 4. Full-screen background gaps 📱
-- Πάνω/κάτω μαύρα κενά — iOS 26 windowing behavior
-- Έχουν δοκιμαστεί 10+ προσεγγίσεις — ακόμα ανοιχτό
-- Δεν επηρεάζει λειτουργικότητα
+- iOS 26 windowing behavior — πάνω/κάτω μαύρα κενά
+- SceneDelegate approach δοκιμάστηκε — δεν έλυσε πλήρως
+- **Παρκαρισμένο για το τέλος**
 
 ---
 
@@ -52,13 +63,12 @@ _Last updated: 2026-03-27 16:48_
 | | |
 |-|-|
 | **Repo** | https://github.com/ai-wonderlab/live-translator |
-| **Branch** | main (τελευταίο merge: `2dbbe9b`) |
+| **Branch** | main |
 | **Device UDID** | `00008030-001434290280802E` |
 | **iOS** | 26.3.1 |
 | **Backend** | https://backend-gamma-eight-88.vercel.app/api/translate |
 | **Supabase URL** | https://ctrddyzybgeyipsslznw.supabase.co |
-| **Supabase Key** | sb_publishable_1-mGhNHxlREzyaG2XkWn-w_HUo9Z4Yj |
-| **App Secret** | easyfair-app-secret-v1 |
+| **URL Scheme** | `easylive://auth-callback` |
 
 ### Build & Install
 ```bash
@@ -72,6 +82,5 @@ xcrun devicectl device install app --device 00008030-001434290280802E "$APP_PATH
 
 ## Κανόνες Εργασίας
 - Κάθε feature σε δικό του branch
-- Merge μόνο μέσω PR (ή explicit εντολή)
 - Surgical edits μόνο — ποτέ full rewrite
 - Κάθε task: συζήτηση → "ναι" → εκτέλεση
