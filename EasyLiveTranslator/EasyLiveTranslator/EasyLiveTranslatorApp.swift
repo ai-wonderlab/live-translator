@@ -357,16 +357,38 @@ struct ProfileSheet: View {
     }
 }
 
+// MARK: - App Delegate (UIKit window background fix for iOS 26)
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Force all windows to black background — prevents white/gray flash on iOS 26
+        DispatchQueue.main.async {
+            for scene in application.connectedScenes {
+                guard let ws = scene as? UIWindowScene else { continue }
+                for window in ws.windows {
+                    window.backgroundColor = .black
+                    if window.frame != ws.screen.bounds {
+                        window.frame = ws.screen.bounds
+                    }
+                }
+            }
+        }
+        return true
+    }
+}
+
 // MARK: - App Entry Point
 
 @main
 struct EasyLiveTranslatorApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                Color.black.ignoresSafeArea(.all)
-                HomeView()
-            }
+            HomeView()
+                .background(Color.black)
+                .preferredColorScheme(.dark)
         }
     }
 }
