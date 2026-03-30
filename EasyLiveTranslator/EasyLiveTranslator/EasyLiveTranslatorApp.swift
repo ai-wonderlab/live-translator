@@ -50,6 +50,22 @@ class AuthManager: ObservableObject {
         isLoading = false
     }
 
+    // Called from SwiftUI — passes the webAuthenticationSession environment value
+    func signInWithGoogle(launchFlow: @escaping @MainActor (URL) async throws -> URL) async {
+        isLoading = true; errorMessage = nil
+        do {
+            try await supabase.auth.signInWithOAuth(
+                provider: .google,
+                redirectTo: URL(string: "easylive://auth-callback")!,
+                launchFlow: launchFlow
+            )
+            await refreshSession()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
     func signOut() async {
         try? await supabase.auth.signOut(); self.user = nil
     }
@@ -60,6 +76,7 @@ class AuthManager: ObservableObject {
 struct AuthSheet: View {
     @ObservedObject private var auth = AuthManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @State private var mode: AuthMode = .signIn
     @State private var email = ""
     @State private var password = ""
@@ -100,6 +117,33 @@ struct AuthSheet: View {
                     )
                     .signInWithAppleButtonStyle(.white)
                     .frame(height: 50).cornerRadius(12)
+
+                    // Google Sign In button
+                    Button {
+                        Task {
+                            await auth.signInWithGoogle { url in
+                                try await webAuthenticationSession.authenticate(
+                                    using: url,
+                                    callbackURLScheme: "easylive"
+                                )
+                            }
+                            if auth.isSignedIn { dismiss() }
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(.white)
+                            Text("Continue with Google")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                        .frame(maxWidth: .infinity).frame(height: 50)
+                        .background(Color(red: 0.25, green: 0.25, blue: 0.28))
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+                    }
+                    .disabled(auth.isLoading)
 
                     HStack {
                         Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
@@ -374,6 +418,28 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         win.rootViewController = hostingController
         win.makeKeyAndVisible()
         self.window = win
+
+        // Handle deep link if app was launched via URL (OAuth callback)
+        if let urlContext = connectionOptions.urlContexts.first {
+            handleURL(urlContext.url)
+        }
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        if let urlContext = URLContexts.first {
+            handleURL(urlContext.url)
+        }
+    }
+
+    private func handleURL(_ url: URL) {
+        Task {
+            do {
+                try await supabase.auth.session(from: url)
+                await AuthManager.shared.refreshSession()
+            } catch {
+                print("[Auth] Deep link handling failed: \(error)")
+            }
+        }
     }
 }
 
