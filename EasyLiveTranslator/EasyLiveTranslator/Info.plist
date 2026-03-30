@@ -21,9 +21,9 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Easy Live Translator needs microphone access to capture speech for translation.</string>
+    <string>Live Translator needs microphone access to capture speech for translation.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Easy Live Translator needs speech recognition access to turn speech into text before translation.</string>
+    <string>Live Translator needs speech recognition access to turn speech into text before translation.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>TranslationAPIAppSecret</key>
