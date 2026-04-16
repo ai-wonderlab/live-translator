@@ -25,7 +25,7 @@ private enum DS {
 
 // MARK: - Shared Mic State
 
-enum MicState: Equatable { case idle, recording, translating, speaking }
+enum MicState: Equatable { case idle, recording, translating, speaking, cooldown }
 
 extension MicState {
     var accentColor: Color {
@@ -34,6 +34,7 @@ extension MicState {
         case .recording: return DS.recording
         case .translating: return DS.translating
         case .speaking: return DS.speaking
+        case .cooldown: return DS.textTertiary
         }
     }
     var glowColor: Color {
@@ -42,11 +43,12 @@ extension MicState {
         case .recording: return DS.recordingGlow
         case .translating: return DS.translatingGlow
         case .speaking: return DS.speakingGlow
+        case .cooldown: return .clear
         }
     }
     var label: String {
         switch self {
-        case .idle: return "HOLD TO TALK"
+        case .idle, .cooldown: return "HOLD TO TALK"
         case .recording: return "LISTENING"
         case .translating: return "TRANSLATING"
         case .speaking: return "SPEAKING"
@@ -54,7 +56,7 @@ extension MicState {
     }
     var icon: String {
         switch self {
-        case .idle, .recording: return "mic.fill"
+        case .idle, .recording, .cooldown: return "mic.fill"
         case .translating: return "ellipsis"
         case .speaking: return "speaker.wave.2.fill"
         }
@@ -96,6 +98,7 @@ struct HomeView: View {
                 Spacer(minLength: 12)
                 historyRows
                     .padding(.horizontal, 20)
+                    .animation(.easeInOut(duration: 0.25), value: engine.history.count)
                 translationCard
                     .padding(.horizontal, 20)
                     .padding(.bottom, 8)
@@ -289,7 +292,9 @@ struct HomeView: View {
 
     private var translationCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if engine.transcript.isEmpty && engine.translationText.isEmpty {
+            if micState == .recording && engine.translationText.isEmpty {
+                RecordingShimmer()
+            } else if engine.transcript.isEmpty && engine.translationText.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "text.bubble")
                         .font(.system(size: 15))
@@ -305,6 +310,17 @@ struct HomeView: View {
                         .font(.system(size: 22, weight: .semibold, design: .rounded))
                         .foregroundStyle(DS.textPrimary)
                         .lineLimit(4)
+
+                    if !engine.transcript.isEmpty {
+                        Divider()
+                            .background(DS.border)
+                            .padding(.vertical, 8)
+                        Text(engine.transcript)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(DS.textSecondary)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
         }
@@ -374,6 +390,7 @@ struct HomeView: View {
         if engine.isListening  { return .recording }
         if engine.isSpeaking   { return .speaking }
         if engine.isProcessing { return .translating }
+        if engine.isInCooldown { return .cooldown }
         return .idle
     }
 
@@ -467,11 +484,31 @@ struct WireSphere: View {
     }
 }
 
+// MARK: - Recording Shimmer
+
+private struct RecordingShimmer: View {
+    @State private var scale: CGFloat = 0.4
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .fill(DS.recording.opacity(0.3))
+            .frame(width: 120, height: 8)
+            .scaleEffect(x: scale, anchor: .leading)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    scale = 1.0
+                }
+            }
+    }
+}
+
 // MARK: - Mic Capsule
 
 struct MicCapsule: View {
     let state: MicState
     let isPressed: Bool
+
+    @State private var cooldownProgress: CGFloat = 1.0
 
     var body: some View {
         HStack(spacing: 10) {
@@ -486,15 +523,32 @@ struct MicCapsule: View {
         .padding(.horizontal, 32)
         .padding(.vertical, 16)
         .background(state.accentColor, in: Capsule())
-        .overlay(Capsule().strokeBorder(state.accentColor.opacity(0.3), lineWidth: 1))
+        .overlay(
+            Capsule()
+                .trim(from: 0, to: state == .cooldown ? cooldownProgress : 1.0)
+                .stroke(DS.textTertiary.opacity(0.4), lineWidth: 1.5)
+                .animation(state == .cooldown ? .linear(duration: 2.0) : .none, value: cooldownProgress)
+        )
         .shadow(color: state.glowColor, radius: state == .idle ? 14 : 26)
         .scaleEffect(isPressed ? 0.93 : 1.0)
+        .opacity(state == .cooldown ? 0.45 : 1.0)
+        .allowsHitTesting(state != .cooldown)
         .animation(.spring(response: 0.22, dampingFraction: 0.6), value: isPressed)
+        .animation(.easeInOut(duration: 0.2), value: state == .cooldown)
         .animation(.easeInOut(duration: 0.3), value: state)
+        .onChange(of: state) { _, newState in
+            if newState == .cooldown {
+                cooldownProgress = 1.0
+                withAnimation(.linear(duration: 2.0)) {
+                    cooldownProgress = 0.0
+                }
+            } else {
+                cooldownProgress = 1.0
+            }
+        }
     }
 
     private var labelForeground: Color {
-        // Cyan is light enough — use dark text. Others use white.
         state == .idle ? DS.bg : .white
     }
 }
