@@ -2,6 +2,7 @@ import SwiftUI
 import Supabase
 import AuthenticationServices
 import CryptoKit
+import AVFoundation
 
 // MARK: - Supabase
 
@@ -283,6 +284,14 @@ struct ProfileSheet: View {
     @Binding var showPaywall: Bool
     @State private var showAuth = false
 
+    private var missingVoices: [Language] {
+        Language.allCases.filter { lang in
+            AVSpeechSynthesisVoice(language: lang.localeIdentifier) == nil &&
+            AVSpeechSynthesisVoice(language: lang.rawValue) == nil &&
+            !AVSpeechSynthesisVoice.speechVoices().contains(where: { $0.language.hasPrefix(lang.rawValue) })
+        }
+    }
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.10).ignoresSafeArea()
@@ -397,12 +406,66 @@ struct ProfileSheet: View {
                     }
                 }
 
+                // Voice Setup
+                if !missingVoices.isEmpty {
+                    voiceSetupSection
+                        .padding(.top, 8)
+                }
+
                 Spacer()
             }
         }
         .sheet(isPresented: $showAuth) {
             AuthSheet().presentationDetents([.large])
         }
+    }
+
+    private var voiceSetupSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                Text("Voice Setup")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.orange)
+            }
+
+            Text("\(missingVoices.count) language\(missingVoices.count == 1 ? "" : "s") without a voice installed:")
+                .font(.system(size: 12, design: .rounded))
+                .foregroundStyle(.white.opacity(0.45))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(missingVoices, id: \.id) { lang in
+                        Text("\(lang.flag) \(lang.displayName)")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(Color.white.opacity(0.07), in: Capsule())
+                    }
+                }
+            }
+
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Settings → Accessibility → Spoken Content → Voices")
+                        .font(.system(size: 12, design: .rounded))
+                }
+                .foregroundStyle(.orange)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.orange.opacity(0.2), lineWidth: 1))
+        .padding(.horizontal, 24)
     }
 }
 
