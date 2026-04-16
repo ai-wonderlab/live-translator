@@ -84,8 +84,10 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            DS.bg
-            ambientBackground
+            // Background fills entire screen including under status bar + home indicator
+            DS.bg.ignoresSafeArea()
+            ambientBackground.ignoresSafeArea()
+            // Content respects safe areas naturally
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
@@ -100,11 +102,7 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
             }
-            .safeAreaPadding()
         }
-        .ignoresSafeArea(.all)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { forceFullScreen() }
         .task {
             engine.langA = langA
             engine.langB = langB
@@ -334,20 +332,6 @@ struct HomeView: View {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first?.windows.first?.safeAreaInsets.bottom ?? 34
-    }
-
-    // MARK: Full Screen Fix
-
-    private func forceFullScreen() {
-        guard let ws = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = ws.windows.first else { return }
-        let screen = ws.screen
-        window.frame = screen.bounds
-        window.backgroundColor = .black
-        if let root = window.rootViewController {
-            root.view.frame = screen.bounds
-            root.view.backgroundColor = .black
-        }
     }
 
     // MARK: Helpers
