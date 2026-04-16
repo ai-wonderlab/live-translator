@@ -78,6 +78,7 @@ struct HomeView: View {
     @State private var showProfile = false
     @ObservedObject private var auth = AuthManager.shared
     @GestureState private var isPressingMic = false
+    @State private var hasStartedHold = false
 
     private var langA: Language { Language(code: langACode) ?? .greek }
     private var langB: Language { Language(code: langBCode) ?? .english }
@@ -93,6 +94,8 @@ struct HomeView: View {
                 Spacer(minLength: 12)
                 sphereSection
                 Spacer(minLength: 12)
+                historyRows
+                    .padding(.horizontal, 20)
                 translationCard
                     .padding(.horizontal, 20)
                     .padding(.bottom, 8)
@@ -237,16 +240,49 @@ struct HomeView: View {
                         DragGesture(minimumDistance: 0)
                             .updating($isPressingMic) { _, s, _ in s = true }
                             .onChanged { _ in
+                                guard !hasStartedHold else { return }
+                                hasStartedHold = true
                                 UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                                 engine.beginHoldIfNeeded()
                             }
                             .onEnded { _ in
+                                hasStartedHold = false
                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 Task { await engine.endHold() }
                             }
                     )
             }
         }
+    }
+
+    // MARK: History rows
+
+    private var historyRows: some View {
+        let entries = Array(engine.history.prefix(2))
+        return VStack(spacing: 6) {
+            ForEach(entries.indices, id: \.self) { i in
+                let entry = entries[i]
+                HStack(spacing: 8) {
+                    Text(entry.sourceLanguage.flag)
+                        .font(.system(size: 13))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.textTertiary)
+                    Text(entry.translatedText)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.textTertiary)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(entry.targetLanguage.flag)
+                        .font(.system(size: 13))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(DS.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(DS.border, lineWidth: 1))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: engine.history.count)
     }
 
     // MARK: Translation card
@@ -336,7 +372,7 @@ struct HomeView: View {
 
     private var micState: MicState {
         if engine.isListening  { return .recording }
-        if engine.isProcessing && !engine.translationText.isEmpty { return .speaking }
+        if engine.isSpeaking   { return .speaking }
         if engine.isProcessing { return .translating }
         return .idle
     }
@@ -344,6 +380,7 @@ struct HomeView: View {
     private var statusLine: String {
         if engine.isPreparingPermissions { return "Requesting access..." }
         if let e = engine.errorMessage   { return e }
+        if engine.isInCooldown           { return "Ready in a moment..." }
         switch micState {
         case .idle:        return engine.permissionsGranted ? "Hold to speak" : "Microphone access required"
         case .recording:   return "Listening..."
@@ -618,7 +655,7 @@ struct CreditsPurchaseSheet: View {
                 }
             }
             if isPurchasing { ProgressView().tint(DS.accent) }
-            Text("30 min free trial · 20 sec per translation")
+            Text("15 min free trial · 20 sec per translation")
                 .font(.system(size: 12, design: .rounded)).foregroundStyle(DS.textTertiary).multilineTextAlignment(.center)
             Spacer()
         }
