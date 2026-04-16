@@ -239,8 +239,14 @@ struct HomeView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .updating($isPressingMic) { _, s, _ in s = true }
-                            .onChanged { _ in engine.beginHoldIfNeeded() }
-                            .onEnded { _ in Task { await engine.endHold() } }
+                            .onChanged { _ in
+                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                engine.beginHoldIfNeeded()
+                            }
+                            .onEnded { _ in
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                Task { await engine.endHold() }
+                            }
                     )
             }
         }
