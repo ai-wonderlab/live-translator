@@ -90,18 +90,26 @@ struct HomeView: View {
             topBar
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-            Spacer(minLength: 12)
+                .padding(.bottom, 12)
+
             sphereSection
-            Spacer(minLength: 12)
-            historyRows
-                .padding(.horizontal, 20)
-                .animation(.easeInOut(duration: 0.25), value: engine.history.count)
-            translationCard
-                .padding(.horizontal, 20)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 8) {
+                    historyRows
+                        .padding(.horizontal, 20)
+                        .animation(.easeInOut(duration: 0.25), value: engine.history.count)
+                    translationCard
+                        .padding(.horizontal, 20)
+                }
+                .padding(.top, 12)
                 .padding(.bottom, 8)
+            }
+
             creditsRow
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
+                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
