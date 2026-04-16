@@ -420,8 +420,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         win.backgroundColor = .black
         let hostingController = UIHostingController(rootView: HomeView())
         hostingController.view.backgroundColor = .black
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         win.rootViewController = hostingController
         win.makeKeyAndVisible()
+        // Pin to window edges — forces true edge-to-edge on iOS 26
+        NSLayoutConstraint.activate([
+            hostingController.view.leadingAnchor.constraint(equalTo: win.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: win.trailingAnchor),
+            hostingController.view.topAnchor.constraint(equalTo: win.topAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: win.bottomAnchor),
+        ])
         self.window = win
 
         // Handle deep link if app was launched via URL (OAuth callback)
