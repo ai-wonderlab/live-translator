@@ -86,27 +86,31 @@ struct HomeView: View {
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
-        ZStack {
-            DS.bg.ignoresSafeArea()
-            ambientBackground.ignoresSafeArea()
-            VStack(spacing: 0) {
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                Spacer(minLength: 12)
-                sphereSection
-                Spacer(minLength: 12)
-                historyRows
-                    .padding(.horizontal, 20)
-                    .animation(.easeInOut(duration: 0.25), value: engine.history.count)
-                translationCard
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                creditsRow
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-            }
+        VStack(spacing: 0) {
+            topBar
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+            Spacer(minLength: 12)
+            sphereSection
+            Spacer(minLength: 12)
+            historyRows
+                .padding(.horizontal, 20)
+                .animation(.easeInOut(duration: 0.25), value: engine.history.count)
+            translationCard
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+            creditsRow
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            ZStack {
+                DS.bg
+                ambientBackground
+            }
+            .ignoresSafeArea()
+        )
         .task {
             engine.langA = langA
             engine.langB = langB
