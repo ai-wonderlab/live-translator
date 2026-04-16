@@ -19,10 +19,15 @@ final class SpeechSynthesizer: NSObject, @preconcurrency AVSpeechSynthesizerDele
         try? session.setActive(true)
 
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: language.localeIdentifier)
+        // Try full locale first (e.g. "fr-FR"), fall back to language code (e.g. "fr"),
+        // then any available voice for that language — avoids silent English fallback.
+        let voice = AVSpeechSynthesisVoice(language: language.localeIdentifier)
+            ?? AVSpeechSynthesisVoice(language: language.rawValue)
+            ?? AVSpeechSynthesisVoice.speechVoices().first(where: { $0.language.hasPrefix(language.rawValue) })
+        utterance.voice = voice
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
 
-        print("[TTS] Speaking: \(text)")
+        print("[TTS] Speaking (\(language.localeIdentifier), voice: \(voice?.name ?? "nil")): \(text)")
         synthesizer.stopSpeaking(at: .immediate)
         synthesizer.speak(utterance)
 
