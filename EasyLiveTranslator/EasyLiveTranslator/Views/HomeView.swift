@@ -83,32 +83,24 @@ struct HomeView: View {
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Background bleeds into system chrome areas → bars invisible
-                DS.bg.ignoresSafeArea()
-                ambientBackground.ignoresSafeArea()
-                // Content strictly within safe area — never behind system bars
-                VStack(spacing: 0) {
-                    topBar
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                    Spacer(minLength: 12)
-                    sphereSection
-                    Spacer(minLength: 12)
-                    translationCard
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    creditsRow
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 16)
-                }
-                .padding(.top, geo.safeAreaInsets.top)
-                .padding(.bottom, geo.safeAreaInsets.bottom)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        ZStack {
+            DS.bg.ignoresSafeArea()
+            ambientBackground.ignoresSafeArea()
+            VStack(spacing: 0) {
+                topBar
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                Spacer(minLength: 12)
+                sphereSection
+                Spacer(minLength: 12)
+                translationCard
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+                creditsRow
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
             }
         }
-        .ignoresSafeArea()
         .task {
             engine.langA = langA
             engine.langB = langB
