@@ -403,6 +403,7 @@ struct HomeView: View {
         case .recording:   return "Listening..."
         case .translating: return "Translating..."
         case .speaking:    return "Speaking..."
+        case .cooldown:    return "Ready in a moment..."
         }
     }
 }
