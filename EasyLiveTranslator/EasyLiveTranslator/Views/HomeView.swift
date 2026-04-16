@@ -509,8 +509,6 @@ struct MicCapsule: View {
     let state: MicState
     let isPressed: Bool
 
-    @State private var cooldownProgress: CGFloat = 1.0
-
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: state.icon)
@@ -524,29 +522,13 @@ struct MicCapsule: View {
         .padding(.horizontal, 32)
         .padding(.vertical, 16)
         .background(state.accentColor, in: Capsule())
-        .overlay(
-            Capsule()
-                .trim(from: 0, to: state == .cooldown ? cooldownProgress : 1.0)
-                .stroke(DS.textTertiary.opacity(0.4), lineWidth: 1.5)
-                .animation(state == .cooldown ? .linear(duration: 2.0) : .none, value: cooldownProgress)
-        )
+        .overlay(Capsule().strokeBorder(state.accentColor.opacity(0.3), lineWidth: 1))
         .shadow(color: state.glowColor, radius: state == .idle ? 14 : 26)
         .scaleEffect(isPressed ? 0.93 : 1.0)
         .opacity(state == .cooldown ? 0.45 : 1.0)
         .allowsHitTesting(state != .cooldown)
         .animation(.spring(response: 0.22, dampingFraction: 0.6), value: isPressed)
-        .animation(.easeInOut(duration: 0.2), value: state == .cooldown)
         .animation(.easeInOut(duration: 0.3), value: state)
-        .onChange(of: state) { _, newState in
-            if newState == .cooldown {
-                cooldownProgress = 1.0
-                withAnimation(.linear(duration: 2.0)) {
-                    cooldownProgress = 0.0
-                }
-            } else {
-                cooldownProgress = 1.0
-            }
-        }
     }
 
     private var labelForeground: Color {
