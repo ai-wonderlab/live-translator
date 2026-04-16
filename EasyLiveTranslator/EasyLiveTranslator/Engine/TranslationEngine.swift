@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import AVFoundation
 
 @MainActor
 final class TranslationEngine: ObservableObject {
@@ -30,7 +29,6 @@ final class TranslationEngine: ObservableObject {
     }
     @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
-    @Published var missingVoiceLanguage: Language? = nil
 
     private let speechRecognizer = SpeechRecognizer()
     private let api = TranslationAPI()
@@ -139,16 +137,9 @@ final class TranslationEngine: ObservableObject {
                 ),
                 at: 0
             )
-            let hasVoice = AVSpeechSynthesisVoice(language: translateTo.localeIdentifier) != nil
-                || AVSpeechSynthesisVoice(language: translateTo.rawValue) != nil
-                || AVSpeechSynthesisVoice.speechVoices().contains(where: { $0.language.hasPrefix(translateTo.rawValue) })
-            if hasVoice {
-                isSpeaking = true
-                await speechSynthesizer.speak(response.translation, language: translateTo)
-                isSpeaking = false
-            } else {
-                missingVoiceLanguage = translateTo
-            }
+            isSpeaking = true
+            await speechSynthesizer.speak(response.translation, language: translateTo)
+            isSpeaking = false
 
             let elapsed = Date().timeIntervalSince(startedAt)
             print(String(format: "[TIMING] Total: %.1fs", elapsed))
