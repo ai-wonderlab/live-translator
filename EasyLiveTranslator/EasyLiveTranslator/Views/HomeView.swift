@@ -104,6 +104,7 @@ struct HomeView: View {
         }
         .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { forceFullScreen() }
         .task {
             engine.langA = langA
             engine.langB = langB
