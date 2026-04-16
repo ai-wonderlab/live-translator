@@ -30,6 +30,7 @@ final class TranslationEngine: ObservableObject {
     }
     @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
+    @Published var missingVoiceLanguage: Language? = nil
 
     private let speechRecognizer = SpeechRecognizer()
     private let api = TranslationAPI()
@@ -145,6 +146,8 @@ final class TranslationEngine: ObservableObject {
                 isSpeaking = true
                 await speechSynthesizer.speak(response.translation, language: translateTo)
                 isSpeaking = false
+            } else {
+                missingVoiceLanguage = translateTo
             }
 
             let elapsed = Date().timeIntervalSince(startedAt)

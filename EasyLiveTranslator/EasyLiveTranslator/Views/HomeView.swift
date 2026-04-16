@@ -155,6 +155,25 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView { hasSeenOnboarding = true; showOnboarding = false }
         }
+        .alert(
+            "\(engine.missingVoiceLanguage?.flag ?? "") \(engine.missingVoiceLanguage?.displayName ?? "") voice not installed",
+            isPresented: Binding(
+                get: { engine.missingVoiceLanguage != nil },
+                set: { if !$0 { engine.missingVoiceLanguage = nil } }
+            )
+        ) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+                engine.missingVoiceLanguage = nil
+            }
+            Button("Dismiss", role: .cancel) {
+                engine.missingVoiceLanguage = nil
+            }
+        } message: {
+            Text("To hear translations spoken aloud, go to Settings → Accessibility → Spoken Content → Voices and download the \(engine.missingVoiceLanguage?.displayName ?? "") voice.")
+        }
         .preferredColorScheme(.dark)
     }
 
