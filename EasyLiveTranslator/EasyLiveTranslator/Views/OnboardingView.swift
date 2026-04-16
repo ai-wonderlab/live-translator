@@ -66,6 +66,7 @@ struct OnboardingView: View {
                 .padding(.bottom, 48)
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 

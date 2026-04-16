@@ -143,6 +143,7 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView { hasSeenOnboarding = true; showOnboarding = false }
         }
+        .preferredColorScheme(.dark)
     }
 
     // MARK: Ambient background glow
