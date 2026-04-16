@@ -100,6 +100,7 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
             }
+            .safeAreaPadding()
         }
         .task {
             engine.langA = langA
