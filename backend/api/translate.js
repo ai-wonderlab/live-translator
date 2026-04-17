@@ -1,8 +1,5 @@
-const OpenAI = require("openai");
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const AZURE_ENDPOINT =
+  "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -43,35 +40,6 @@ function parseRequestBody(req) {
 
     req.on("error", reject);
   });
-}
-
-function parseModelJson(rawContent) {
-  if (!rawContent || typeof rawContent !== "string") {
-    throw new Error("Empty model response.");
-  }
-
-  const trimmed = rawContent.trim();
-  const candidates = [trimmed];
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced && fenced[1]) {
-    candidates.push(fenced[1].trim());
-  }
-
-  const jsonLike = trimmed.match(/\{[\s\S]*\}/);
-  if (jsonLike) {
-    candidates.push(jsonLike[0]);
-  }
-
-  for (const candidate of candidates) {
-    try {
-      return JSON.parse(candidate);
-    } catch (_error) {
-      // Keep trying the next candidate.
-    }
-  }
-
-  throw new Error("Unable to parse model JSON.");
 }
 
 function normalizeLanguage(value) {
@@ -128,48 +96,73 @@ function validatePayload(payload) {
   };
 }
 
+// Map app language codes to Azure Translator language codes
+function toAzureCode(code) {
+  if (code === "zh") return "zh-Hans";
+  if (code === "zh-TW") return "zh-Hant";
+  return code;
+}
+
+// Match Azure's detected language code back to one of the app's language codes
+function matchAzureDetected(azureCode, sourceLang, targetLang) {
+  const azureSource = toAzureCode(sourceLang);
+  const azureTarget = toAzureCode(targetLang);
+  if (azureCode === azureSource || azureCode.startsWith(azureSource + "-")) {
+    return sourceLang;
+  }
+  if (azureCode === azureTarget || azureCode.startsWith(azureTarget + "-")) {
+    return targetLang;
+  }
+  return sourceLang; // fallback
+}
+
 async function translateText({ text, sourceLang, targetLang }) {
-  const completion = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-    temperature: 0,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "Return JSON only with keys translation and detected. Decide whether the input text is written in sourceLang or targetLang, set detected to exactly that language value, and translate into the opposite language. Never output extra keys or commentary.",
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
-          text,
-          sourceLang,
-          targetLang,
-          rules: {
-            detected_must_be_one_of: [sourceLang, targetLang],
-            translation_target:
-              "If detected equals sourceLang, translate into targetLang. Otherwise translate into sourceLang.",
-          },
-        }),
-      },
-    ],
+  const azureKey = process.env.AZURE_TRANSLATOR_KEY;
+  const azureRegion = process.env.AZURE_TRANSLATOR_REGION;
+
+  const azureSourceCode = toAzureCode(sourceLang);
+  const azureTargetCode = toAzureCode(targetLang);
+
+  // Request translations to both languages so Azure auto-detects the source
+  // and we can pick the correct output without a second round-trip.
+  const url =
+    `${AZURE_ENDPOINT}` +
+    `&to=${encodeURIComponent(azureSourceCode)}` +
+    `&to=${encodeURIComponent(azureTargetCode)}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Ocp-Apim-Subscription-Key": azureKey,
+      "Ocp-Apim-Subscription-Region": azureRegion,
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+    body: JSON.stringify([{ Text: text }]),
   });
 
-  const raw =
-    completion.choices &&
-    completion.choices[0] &&
-    completion.choices[0].message &&
-    completion.choices[0].message.content
-      ? completion.choices[0].message.content
-      : "";
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => "");
+    throw new Error(`Azure Translator HTTP ${response.status}: ${errBody}`);
+  }
 
-  const parsed = parseModelJson(raw);
-  const translation =
-    typeof parsed.translation === "string" ? parsed.translation.trim() : "";
-  const detected = normalizeLanguage(parsed.detected);
+  const data = await response.json();
+  const item = data[0];
 
-  if (!translation || ![sourceLang, targetLang].includes(detected)) {
-    throw new Error("Model returned invalid translation payload.");
+  if (!item || !Array.isArray(item.translations)) {
+    throw new Error("Unexpected Azure Translator response shape.");
+  }
+
+  const azureDetected = item.detectedLanguage?.language || azureSourceCode;
+  const detected = matchAzureDetected(azureDetected, sourceLang, targetLang);
+
+  // Translate into the OTHER language from the one that was detected
+  const translationTo =
+    detected === sourceLang ? azureTargetCode : azureSourceCode;
+  const entry = item.translations.find((t) => t.to === translationTo);
+  const translation = entry?.text?.trim() || "";
+
+  if (!translation) {
+    throw new Error("Azure Translator returned empty translation.");
   }
 
   return { translation, detected };
@@ -192,8 +185,13 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    sendJson(res, 500, { error: "OPENAI_API_KEY is not configured." });
+  if (!process.env.AZURE_TRANSLATOR_KEY) {
+    sendJson(res, 500, { error: "AZURE_TRANSLATOR_KEY is not configured." });
+    return;
+  }
+
+  if (!process.env.AZURE_TRANSLATOR_REGION) {
+    sendJson(res, 500, { error: "AZURE_TRANSLATOR_REGION is not configured." });
     return;
   }
 
@@ -231,7 +229,10 @@ module.exports = async (req, res) => {
     const message =
       error && error.message ? error.message : "Unexpected server error.";
 
-    if (message === "Invalid JSON body." || message === "Request body too large.") {
+    if (
+      message === "Invalid JSON body." ||
+      message === "Request body too large."
+    ) {
       sendJson(res, 400, { error: message });
       return;
     }
