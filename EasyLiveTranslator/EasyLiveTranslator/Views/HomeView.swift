@@ -25,7 +25,7 @@ private enum DS {
 
 // MARK: - Shared Mic State
 
-enum MicState: Equatable { case idle, recording, translating, speaking }
+enum MicState: Equatable { case idle, recording, translating, speaking, cooldown }
 
 extension MicState {
     var accentColor: Color {
@@ -34,6 +34,7 @@ extension MicState {
         case .recording: return DS.recording
         case .translating: return DS.translating
         case .speaking: return DS.speaking
+        case .cooldown: return DS.textTertiary
         }
     }
     var glowColor: Color {
@@ -42,11 +43,12 @@ extension MicState {
         case .recording: return DS.recordingGlow
         case .translating: return DS.translatingGlow
         case .speaking: return DS.speakingGlow
+        case .cooldown: return .clear
         }
     }
     var label: String {
         switch self {
-        case .idle: return "HOLD TO TALK"
+        case .idle, .cooldown: return "HOLD TO TALK"
         case .recording: return "LISTENING"
         case .translating: return "TRANSLATING"
         case .speaking: return "SPEAKING"
@@ -54,7 +56,7 @@ extension MicState {
     }
     var icon: String {
         switch self {
-        case .idle, .recording: return "mic.fill"
+        case .idle, .recording, .cooldown: return "mic.fill"
         case .translating: return "ellipsis"
         case .speaking: return "speaker.wave.2.fill"
         }
@@ -78,33 +80,45 @@ struct HomeView: View {
     @State private var showProfile = false
     @ObservedObject private var auth = AuthManager.shared
     @GestureState private var isPressingMic = false
+    @State private var hasStartedHold = false
 
     private var langA: Language { Language(code: langACode) ?? .greek }
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
-        ZStack {
-            DS.bg
-            ambientBackground
-            VStack(spacing: 0) {
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                Spacer(minLength: 12)
-                sphereSection
-                Spacer(minLength: 12)
-                translationCard
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                creditsRow
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+        VStack(spacing: 0) {
+            topBar
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+
+            sphereSection
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 8) {
+                    historyRows
+                        .padding(.horizontal, 20)
+                        .animation(.easeInOut(duration: 0.25), value: engine.history.count)
+                    translationCard
+                        .padding(.horizontal, 20)
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
             }
-            .safeAreaPadding()
+
+            creditsRow
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+                .padding(.top, 4)
         }
-        .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { forceFullScreen() }
+        .background(
+            ZStack {
+                DS.bg
+                ambientBackground
+            }
+            .ignoresSafeArea()
+        )
         .task {
             engine.langA = langA
             engine.langB = langB
@@ -141,6 +155,7 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView { hasSeenOnboarding = true; showOnboarding = false }
         }
+        .preferredColorScheme(.dark)
     }
 
     // MARK: Ambient background glow
@@ -241,10 +256,13 @@ struct HomeView: View {
                         DragGesture(minimumDistance: 0)
                             .updating($isPressingMic) { _, s, _ in s = true }
                             .onChanged { _ in
+                                guard !hasStartedHold else { return }
+                                hasStartedHold = true
                                 UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                                 engine.beginHoldIfNeeded()
                             }
                             .onEnded { _ in
+                                hasStartedHold = false
                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 Task { await engine.endHold() }
                             }
@@ -253,11 +271,43 @@ struct HomeView: View {
         }
     }
 
+    // MARK: History rows
+
+    private var historyRows: some View {
+        let entries = Array(engine.history.prefix(2))
+        return VStack(spacing: 6) {
+            ForEach(entries.indices, id: \.self) { i in
+                let entry = entries[i]
+                HStack(spacing: 8) {
+                    Text(entry.sourceLanguage.flag)
+                        .font(.system(size: 13))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.textTertiary)
+                    Text(entry.translatedText)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.textTertiary)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(entry.targetLanguage.flag)
+                        .font(.system(size: 13))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(DS.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(DS.border, lineWidth: 1))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: engine.history.count)
+    }
+
     // MARK: Translation card
 
     private var translationCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if engine.transcript.isEmpty && engine.translationText.isEmpty {
+            if micState == .recording && engine.translationText.isEmpty {
+                RecordingShimmer()
+            } else if engine.transcript.isEmpty && engine.translationText.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "text.bubble")
                         .font(.system(size: 15))
@@ -273,6 +323,17 @@ struct HomeView: View {
                         .font(.system(size: 22, weight: .semibold, design: .rounded))
                         .foregroundStyle(DS.textPrimary)
                         .lineLimit(4)
+
+                    if !engine.transcript.isEmpty {
+                        Divider()
+                            .background(DS.border)
+                            .padding(.vertical, 8)
+                        Text(engine.transcript)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(DS.textSecondary)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
         }
@@ -336,37 +397,26 @@ struct HomeView: View {
             .first?.windows.first?.safeAreaInsets.bottom ?? 34
     }
 
-    // MARK: Full Screen Fix
-
-    private func forceFullScreen() {
-        guard let ws = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = ws.windows.first else { return }
-        let screen = ws.screen
-        window.frame = screen.bounds
-        window.backgroundColor = .black
-        if let root = window.rootViewController {
-            root.view.frame = screen.bounds
-            root.view.backgroundColor = .black
-        }
-    }
-
     // MARK: Helpers
 
     private var micState: MicState {
         if engine.isListening  { return .recording }
-        if engine.isProcessing && !engine.translationText.isEmpty { return .speaking }
+        if engine.isSpeaking   { return .speaking }
         if engine.isProcessing { return .translating }
+        if engine.isInCooldown { return .cooldown }
         return .idle
     }
 
     private var statusLine: String {
         if engine.isPreparingPermissions { return "Requesting access..." }
         if let e = engine.errorMessage   { return e }
+        if engine.isInCooldown           { return "Ready in a moment..." }
         switch micState {
         case .idle:        return engine.permissionsGranted ? "Hold to speak" : "Microphone access required"
         case .recording:   return "Listening..."
         case .translating: return "Translating..."
         case .speaking:    return "Speaking..."
+        case .cooldown:    return "Ready in a moment..."
         }
     }
 }
@@ -448,6 +498,24 @@ struct WireSphere: View {
     }
 }
 
+// MARK: - Recording Shimmer
+
+private struct RecordingShimmer: View {
+    @State private var scale: CGFloat = 0.4
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .fill(DS.recording.opacity(0.3))
+            .frame(width: 120, height: 8)
+            .scaleEffect(x: scale, anchor: .leading)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    scale = 1.0
+                }
+            }
+    }
+}
+
 // MARK: - Mic Capsule
 
 struct MicCapsule: View {
@@ -470,12 +538,13 @@ struct MicCapsule: View {
         .overlay(Capsule().strokeBorder(state.accentColor.opacity(0.3), lineWidth: 1))
         .shadow(color: state.glowColor, radius: state == .idle ? 14 : 26)
         .scaleEffect(isPressed ? 0.93 : 1.0)
+        .opacity(state == .cooldown ? 0.45 : 1.0)
+        .allowsHitTesting(state != .cooldown)
         .animation(.spring(response: 0.22, dampingFraction: 0.6), value: isPressed)
         .animation(.easeInOut(duration: 0.3), value: state)
     }
 
     private var labelForeground: Color {
-        // Cyan is light enough — use dark text. Others use white.
         state == .idle ? DS.bg : .white
     }
 }
@@ -636,7 +705,7 @@ struct CreditsPurchaseSheet: View {
                 }
             }
             if isPurchasing { ProgressView().tint(DS.accent) }
-            Text("30 min free trial · 20 sec per translation")
+            Text("15 min free trial · 20 sec per translation")
                 .font(.system(size: 12, design: .rounded)).foregroundStyle(DS.textTertiary).multilineTextAlignment(.center)
             Spacer()
         }

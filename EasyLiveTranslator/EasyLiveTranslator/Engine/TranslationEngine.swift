@@ -17,10 +17,16 @@ final class TranslationEngine: ObservableObject {
     @Published var detectedLanguage: Language? = nil
     @Published var isListening = false
     @Published var isProcessing = false
+    @Published var isSpeaking = false
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
     private var lastTranslationAt: Date = .distantPast
     private static let translationCooldown: TimeInterval = 2.0
+
+    var isInCooldown: Bool {
+        !isProcessing && !isListening &&
+        Date().timeIntervalSince(lastTranslationAt) < Self.translationCooldown
+    }
     @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
 
@@ -73,11 +79,13 @@ final class TranslationEngine: ObservableObject {
     func beginHoldIfNeeded() {
         guard permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing,
               Date().timeIntervalSince(lastTranslationAt) >= Self.translationCooldown else { return }
+
+        transcript = ""
+        translationText = ""
+        detectedLanguage = nil
+        errorMessage = nil
+
         do {
-            transcript = ""
-            translationText = ""
-            detectedLanguage = nil
-            errorMessage = nil
             try speechRecognizer.startListening(language: activeSttLanguage)
             isListening = true
         } catch {
@@ -129,7 +137,9 @@ final class TranslationEngine: ObservableObject {
                 ),
                 at: 0
             )
+            isSpeaking = true
             await speechSynthesizer.speak(response.translation, language: translateTo)
+            isSpeaking = false
 
             let elapsed = Date().timeIntervalSince(startedAt)
             print(String(format: "[TIMING] Total: %.1fs", elapsed))

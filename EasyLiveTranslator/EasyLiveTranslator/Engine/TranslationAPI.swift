@@ -25,8 +25,19 @@ struct TranslationAPI {
         langA: Language,
         langB: Language
     ) async throws -> TranslationResult {
-        let sourceLanguage = langA
-        let targetLanguage = langB
+        // Tier 1: Apple on-device translation (free, no network required)
+        if #available(iOS 17.4, *) {
+            let apple = AppleTranslationProvider()
+            if let result = await apple.translate(text: text, langA: langA.code, langB: langB.code) {
+                return result
+            }
+        }
+
+        // Tier 2: Azure Translator via Vercel backend (fallback for unsupported languages)
+        return try await callBackend(text: text, langA: langA, langB: langB)
+    }
+
+    private func callBackend(text: String, langA: Language, langB: Language) async throws -> TranslationResult {
         guard let appSecret = Bundle.main.object(forInfoDictionaryKey: "TranslationAPIAppSecret") as? String,
               !appSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw TranslationAPIError.missingAppSecret
@@ -44,7 +55,7 @@ struct TranslationAPI {
             )
         )
 
-        print("[API] → POST /translate")
+        print("[API] → POST /translate (backend)")
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)

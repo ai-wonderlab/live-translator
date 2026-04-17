@@ -8,7 +8,5 @@
   "scripts": {
     "deploy:prod": "vercel deploy --prod"
   },
-  "dependencies": {
-    "openai": "^6.26.0"
-  }
+  "dependencies": {}
 }
