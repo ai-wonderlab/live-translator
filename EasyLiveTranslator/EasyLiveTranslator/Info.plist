@@ -27,7 +27,7 @@
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>TranslationAPIAppSecret</key>
-    <string>easyfair-app-secret-v1</string>
+    <string>$(TRANSLATION_API_APP_SECRET)</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
