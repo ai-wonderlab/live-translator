@@ -134,7 +134,7 @@ struct HomeView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPaywall) {
-            PaywallSheet()
+            PaywallSheet(storeManager: storeManager)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
