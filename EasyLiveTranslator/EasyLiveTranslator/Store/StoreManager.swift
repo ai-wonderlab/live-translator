@@ -28,6 +28,44 @@ final class StoreManager: ObservableObject {
     @Published private(set) var products: [Product] = []
     @Published private(set) var purchaseState: PurchaseState = .idle
 
+    private var updatesTask: Task<Void, Never>?
+
+    init() {
+        // Listen for transactions that arrive outside a direct purchase() call:
+        // interrupted purchases, Ask to Buy approvals, purchases from other devices.
+        // Without this, paid credits can be silently lost.
+        updatesTask = Task { [weak self] in
+            for await result in Transaction.updates {
+                await self?.credit(result)
+            }
+        }
+        // Credit any transactions left unfinished by a previous session (e.g. app killed mid-purchase).
+        Task { [weak self] in
+            for await result in Transaction.unfinished {
+                await self?.credit(result)
+            }
+        }
+    }
+
+    deinit {
+        updatesTask?.cancel()
+    }
+
+    /// Verifies, credits, and finishes a transaction delivered outside purchase().
+    private func credit(_ result: VerificationResult<Transaction>) async {
+        guard case .verified(let transaction) = result else { return }
+        guard transaction.revocationDate == nil else {
+            await transaction.finish()
+            return
+        }
+        let seconds = Self.secondsPerProduct[transaction.productID] ?? 0
+        if seconds > 0 {
+            CreditManager.shared.addSeconds(seconds)
+            purchaseState = .success("+\(seconds / 60) min added")
+        }
+        await transaction.finish()
+    }
+
     func loadProducts() async {
         purchaseState = .loading
 
@@ -73,25 +111,19 @@ final class StoreManager: ObservableObject {
         }
     }
 
+    /// Consumables cannot be restored from the App Store — finished consumable
+    /// transactions never appear in currentEntitlements. Credits live in iCloud
+    /// Key-Value storage, so "restore" means re-reading them from iCloud, plus
+    /// finishing any unfinished transactions that were never credited.
     func restorePurchases() async {
         purchaseState = .loading
-        var restoredSeconds = 0
 
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result {
-                let seconds = Self.secondsPerProduct[transaction.productID] ?? 0
-                if seconds > 0 {
-                    restoredSeconds += seconds
-                }
-            }
+        for await result in Transaction.unfinished {
+            await credit(result)
         }
 
-        if restoredSeconds > 0 {
-            CreditManager.shared.addSeconds(restoredSeconds)
-            purchaseState = .success("+\(restoredSeconds / 60) min restored")
-        } else {
-            purchaseState = .success("No purchases to restore.")
-        }
+        CreditManager.shared.refreshFromStorage()
+        purchaseState = .success("Credits synced from iCloud.")
     }
 
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
