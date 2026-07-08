@@ -74,6 +74,22 @@ class AuthManager: ObservableObject {
     func signOut() async {
         try? await supabase.auth.signOut(); self.user = nil
     }
+
+    /// Deletes the user's account (App Store Guideline 5.1.1(v)).
+    /// Requires the `delete_user` SECURITY DEFINER function in Supabase —
+    /// see SETUP-ACCOUNT-DELETION.md.
+    func deleteAccount() async {
+        isLoading = true; errorMessage = nil
+        do {
+            try await supabase.rpc("delete_user").execute()
+            try? await supabase.auth.signOut()
+            self.user = nil
+        } catch {
+            errorMessage = "Could not delete account. Please try again or contact support."
+            print("[Auth] Account deletion failed: \(error.localizedDescription)")
+        }
+        isLoading = false
+    }
 }
 
 // MARK: - AuthSheet
@@ -282,6 +298,7 @@ struct ProfileSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var showPaywall: Bool
     @State private var showAuth = false
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         ZStack {
@@ -354,6 +371,22 @@ struct ProfileSheet: View {
                                 .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
                         }
                         .padding(.horizontal, 24)
+
+                        // Delete account — required by App Store Guideline 5.1.1(v)
+                        Button { showDeleteConfirmation = true } label: {
+                            Text("Delete Account")
+                                .font(.system(size: 13, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                        .padding(.top, 4)
+
+                        if let err = auth.errorMessage {
+                            Text(err)
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundStyle(.red.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                        }
                     }
                 } else {
                     // Not logged in
@@ -366,7 +399,7 @@ struct ProfileSheet: View {
 
                         Text("No account yet")
                             .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(.white)
-                        Text("Create an account to buy more translation time\nand sync across devices.")
+                        Text("Optional — create an account to sync\nyour profile across devices.")
                             .font(.system(size: 13, design: .rounded))
                             .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
@@ -402,6 +435,17 @@ struct ProfileSheet: View {
         }
         .sheet(isPresented: $showAuth) {
             AuthSheet().presentationDetents([.large])
+        }
+        .alert("Delete your account?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task {
+                    await auth.deleteAccount()
+                    if !auth.isSignedIn { dismiss() }
+                }
+            }
+        } message: {
+            Text("This permanently deletes your account. Purchased translation time stays on this device and iCloud.")
         }
     }
 }
