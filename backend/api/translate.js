@@ -181,7 +181,7 @@ module.exports = async (req, res) => {
       res,
       405,
       { error: "Method Not Allowed" },
-      { Allow: "POST, OPTIONS" }
+      { Allow: "POST" }
     );
     return;
   }
