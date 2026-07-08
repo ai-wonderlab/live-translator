@@ -21,6 +21,7 @@
 		A0000000000000000000000A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* HomeView.swift */; };
 		A0000000000000000000000B /* MicButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* MicButton.swift */; };
 		A0000000000000000000000C /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001E /* StoreManager.swift */; };
+		A0000000000000000000000D /* AppleTranslationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001F /* AppleTranslationProvider.swift */; };
 		BB4688A61B4AB647E6B6B90D /* TranslationEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */; };
 		DD288879659C7046CAA0B196 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
@@ -43,6 +44,7 @@
 		A0000000000000000000001E /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationEntry.swift; sourceTree = "<group>"; };
 		CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		A0000000000000000000001F /* AppleTranslationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTranslationProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +105,7 @@
 				A00000000000000000000013 /* TranslationEngine.swift */,
 				A00000000000000000000014 /* SpeechRecognizer.swift */,
 				A00000000000000000000015 /* TranslationAPI.swift */,
+				A0000000000000000000001F /* AppleTranslationProvider.swift */,
 				A00000000000000000000016 /* SpeechSynthesizer.swift */,
 			);
 			path = Engine;
@@ -213,6 +216,7 @@
 				A00000000000000000000003 /* TranslationEngine.swift in Sources */,
 				A00000000000000000000004 /* SpeechRecognizer.swift in Sources */,
 				A00000000000000000000005 /* TranslationAPI.swift in Sources */,
+				A0000000000000000000000D /* AppleTranslationProvider.swift in Sources */,
 				A00000000000000000000006 /* SpeechSynthesizer.swift in Sources */,
 				A00000000000000000000007 /* CreditManager.swift in Sources */,
 				A00000000000000000000008 /* Language.swift in Sources */,

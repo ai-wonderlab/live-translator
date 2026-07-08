@@ -26,6 +26,7 @@ final class TranslationEngine: ObservableObject {
 
     private let speechRecognizer = SpeechRecognizer()
     private let api = TranslationAPI()
+    private let appleTranslation = AppleTranslationProvider()
     private let speechSynthesizer = SpeechSynthesizer()
     private let credits = CreditManager.shared
     private var hasPreparedPermissions = false
@@ -103,11 +104,22 @@ final class TranslationEngine: ObservableObject {
                 throw TranslationCreditError.noCredits
             }
 
-            let response = try await api.translate(
+            // On-device first (free, offline, instant); cloud backend as fallback.
+            let response: TranslationResult
+            if let onDevice = await appleTranslation.translate(
                 text: recognized,
-                langA: langA,
-                langB: langB
-            )
+                langA: langA.code,
+                langB: langB.code
+            ) {
+                print("[Engine] Translated on-device")
+                response = onDevice
+            } else {
+                response = try await api.translate(
+                    text: recognized,
+                    langA: langA,
+                    langB: langB
+                )
+            }
             translationText = response.translation
             let detected = Language(code: response.detected ?? "") ?? activeSttLanguage
             detectedLanguage = detected
