@@ -43,6 +43,7 @@
 		A0000000000000000000001E /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		AA1268FFE0D28D4D4488613B /* TranslationEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationEntry.swift; sourceTree = "<group>"; };
 		CC7F533D0FBA9349F49CCECC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		A000000000000000000000EE /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +69,7 @@
 		A00000000000000000000030 = {
 			isa = PBXGroup;
 			children = (
+				A000000000000000000000EE /* Secrets.xcconfig */,
 				A00000000000000000000031 /* EasyLiveTranslator */,
 				49B1F86A2F76CDF80065DC5B /* Frameworks */,
 				A00000000000000000000032 /* Products */,
@@ -230,6 +232,7 @@
 /* Begin XCBuildConfiguration section */
 		A00000000000000000000070 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A000000000000000000000EE /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -256,12 +259,12 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TRANSLATION_API_APP_SECRET = CHANGE_ME_IN_BUILD_SETTINGS;
 			};
 			name = Debug;
 		};
 		A00000000000000000000071 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A000000000000000000000EE /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -288,7 +291,6 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TRANSLATION_API_APP_SECRET = CHANGE_ME_IN_BUILD_SETTINGS;
 			};
 			name = Release;
 		};

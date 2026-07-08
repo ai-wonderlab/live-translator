@@ -4,10 +4,10 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-App-Secret",
+// No CORS headers on purpose: this API is called only by the native iOS app.
+// Without CORS, browsers refuse cross-origin JS calls — one less abuse vector
+// if the app secret ever leaks.
+const BASE_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
 };
 
@@ -17,7 +17,7 @@ const RATE_LIMIT_MAX_REQUESTS = 60;
 const rateLimitMap = new Map();
 
 function sendJson(res, statusCode, payload, extraHeaders = {}) {
-  res.writeHead(statusCode, { ...CORS_HEADERS, ...extraHeaders });
+  res.writeHead(statusCode, { ...BASE_HEADERS, ...extraHeaders });
   res.end(JSON.stringify(payload));
 }
 
@@ -176,18 +176,12 @@ async function translateText({ text, sourceLang, targetLang }) {
 }
 
 module.exports = async (req, res) => {
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, CORS_HEADERS);
-    res.end();
-    return;
-  }
-
   if (req.method !== "POST") {
     sendJson(
       res,
       405,
       { error: "Method Not Allowed" },
-      { Allow: "POST, OPTIONS" }
+      { Allow: "POST" }
     );
     return;
   }
