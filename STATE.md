@@ -69,6 +69,8 @@ _Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 
 | | |
 |-|-|
+| **Team ID** | `4377RHJY7Z` (WDMF PC — paid Apple Developer Program) |
+| **Bundle ID** | `gr.easyfair.livetranslator` (το παλιό `gr.easyfair.app` έμεινε στο personal team VKS7898WXK) |
 | **Repo** | https://github.com/ai-wonderlab/live-translator |
 | **Branch** | main |
 | **Device UDID** | `00008140-00167C6A2E07001C` |
