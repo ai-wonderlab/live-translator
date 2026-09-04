@@ -32,8 +32,12 @@ struct AppleTranslationProvider {
     }
 
     /// Translates on-device. Returns nil when the caller should use the backend.
+    ///
+    /// On iOS < 26 the required `TranslationSession(installedSource:target:)`
+    /// initializer does not exist, so every call falls through to the cloud path.
     @MainActor
     func translate(text: String, langA: String, langB: String) async -> TranslationResult? {
+        guard #available(iOS 26.0, *) else { return nil }
         guard Self.supported.contains(langA), Self.supported.contains(langB) else {
             return nil
         }
