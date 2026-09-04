@@ -8,10 +8,8 @@ final class TranslationEngine: ObservableObject {
     var langA: Language = .greek
     var langB: Language = .english
 
-    /// Languages the recognizer listens for at the same time: the user's own,
-    /// the chosen target, and English — the common travel fallback for someone
-    /// speaking neither of the other two.
-    ///
+    /// Languages the recording is transcribed in: the user's own, the chosen
+    /// target, and English — the common fallback for someone speaking neither.
     private var candidateLanguages: [Language] {
         var seen = Set<String>()
         return [langA, langB, .english].filter { seen.insert($0.code).inserted }
