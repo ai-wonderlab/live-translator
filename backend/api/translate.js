@@ -103,6 +103,91 @@ function isRateLimited(ip) {
   return current.count > RATE_LIMIT_MAX_REQUESTS;
 }
 
+/// Several transcripts of the SAME audio, one per speech recognizer.
+function validateCandidatePayload(payload) {
+  if (!Array.isArray(payload.candidates)) return null;
+
+  const candidates = [];
+  for (const entry of payload.candidates.slice(0, 5)) {
+    const lang = normalizeLanguage(entry && entry.lang);
+    const text =
+      entry && typeof entry.text === "string" ? entry.text.trim() : "";
+    if (!lang || !text) continue;
+    if (text.length > 500) {
+      return { ok: false, error: "Text exceeds 500 characters." };
+    }
+    candidates.push({ lang, text });
+  }
+
+  const targetLang = normalizeLanguage(payload.targetLang);
+  const homeLang = normalizeLanguage(payload.homeLang) || targetLang;
+
+  if (candidates.length === 0 || !targetLang) {
+    return {
+      ok: false,
+      error: "Missing required fields: candidates, targetLang.",
+    };
+  }
+
+  return { ok: true, value: { candidates, targetLang, homeLang } };
+}
+
+/// Picks the transcript that is actually a sentence, then translates it.
+///
+/// Every candidate is the same audio decoded by a recognizer locked to a
+/// different language, so all but one read as phonetic nonsense. Deciding that
+/// is something a language model does reliably and recognizer confidence
+/// scores do not.
+async function translateFromCandidates({ candidates, targetLang, homeLang }) {
+  const completion = await client.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    temperature: 0,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are given several transcripts of the SAME spoken audio. Each was produced by a speech recognizer locked to a different language, so at most one is a faithful transcription; the others are the same sounds forced into a language that was not spoken and read as nonsense or as words that do not form a sensible utterance. " +
+          "Choose the transcript that is genuinely coherent and meaningful in its own language. " +
+          "Translate the chosen transcript into targetLang. If the chosen transcript is already in targetLang, translate it into homeLang instead. " +
+          "Return JSON only, with keys: detected (the language code of the chosen transcript, exactly as given), source (the chosen transcript), translation (the translated text), translation_language (the language code you translated into). No other keys, no commentary.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({ candidates, targetLang, homeLang }),
+      },
+    ],
+  });
+
+  const raw =
+    completion.choices &&
+    completion.choices[0] &&
+    completion.choices[0].message &&
+    completion.choices[0].message.content
+      ? completion.choices[0].message.content
+      : "";
+
+  const parsed = parseModelJson(raw);
+  const translation =
+    typeof parsed.translation === "string" ? parsed.translation.trim() : "";
+  const detected = normalizeLanguage(parsed.detected);
+  const source = typeof parsed.source === "string" ? parsed.source.trim() : "";
+  const translationLanguage =
+    normalizeLanguage(parsed.translation_language) || targetLang;
+
+  const offered = candidates.map((candidate) => candidate.lang);
+  if (!translation || !offered.includes(detected)) {
+    throw new Error("Model returned invalid candidate payload.");
+  }
+
+  return {
+    detected,
+    source,
+    translation,
+    translation_language: translationLanguage,
+  };
+}
+
 function validatePayload(payload) {
   const text = typeof payload.text === "string" ? payload.text.trim() : "";
   const sourceLang = normalizeLanguage(payload.sourceLang);
@@ -211,6 +296,19 @@ module.exports = async (req, res) => {
 
   try {
     const payload = await parseRequestBody(req);
+
+    const candidateValidation = validateCandidatePayload(payload);
+    if (candidateValidation) {
+      if (!candidateValidation.ok) {
+        sendJson(res, 400, { error: candidateValidation.error });
+        return;
+      }
+      fallbackDetected = candidateValidation.value.candidates[0].lang;
+      const result = await translateFromCandidates(candidateValidation.value);
+      sendJson(res, 200, result);
+      return;
+    }
+
     const validation = validatePayload(payload);
 
     if (!validation.ok) {

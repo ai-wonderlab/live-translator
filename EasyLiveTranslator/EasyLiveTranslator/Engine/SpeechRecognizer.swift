@@ -61,7 +61,7 @@ final class SpeechRecognizer {
 
     private let audioEngine = AVAudioEngine()
     private var sessions: [Session] = []
-    private var finalContinuation: CheckedContinuation<RecognizedSpeech, Error>?
+    private var finalContinuation: CheckedContinuation<[RecognizedSpeech], Error>?
     private var tapInstalled = false
     var onAudioLevel: ((Float) -> Void)?
 
@@ -156,10 +156,14 @@ final class SpeechRecognizer {
         }
     }
 
-    func stopListening() async throws -> RecognizedSpeech {
+    /// Every transcript that came back, best local guess first. The caller
+    /// decides which one was really spoken — locally when there is only one,
+    /// otherwise by asking the translation service to pick the coherent one.
+    func stopListening() async throws -> [RecognizedSpeech] {
         guard audioEngine.isRunning else {
-            guard let best = bestCandidate() else { throw SpeechRecognizerError.emptyTranscript }
-            return best
+            let results = rankedCandidates()
+            guard !results.isEmpty else { throw SpeechRecognizerError.emptyTranscript }
+            return results
         }
 
         audioEngine.stop()
@@ -167,7 +171,7 @@ final class SpeechRecognizer {
         for session in sessions { session.request.endAudio() }
         onAudioLevel?(0)
 
-        return try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[RecognizedSpeech], Error>) in
             finalContinuation = continuation
 
             // Safety net: never leave the continuation hanging if a recognizer stalls.
@@ -191,21 +195,21 @@ final class SpeechRecognizer {
         finalContinuation = nil
         cleanupAudio()
 
-        if let best = bestCandidate() {
-            continuation.resume(returning: best)
-        } else {
+        let results = rankedCandidates()
+        if results.isEmpty {
             continuation.resume(throwing: SpeechRecognizerError.emptyTranscript)
+        } else {
+            continuation.resume(returning: results)
         }
     }
 
-    /// Picks the language whose recognizer produced the most plausible transcript.
+    /// All non-empty transcripts, ordered by a local plausibility score.
     ///
-    /// A recognizer forced to transcribe audio in a language it does not know
-    /// still returns words — but with visibly lower confidence than the one that
-    /// actually matches. Confidence carries the decision; a language identifier
-    /// run over the transcript and the candidate's own bias break near-ties.
-    private func bestCandidate() -> RecognizedSpeech? {
-        var best: (score: Double, speech: RecognizedSpeech)?
+    /// The ordering is only a hint — recognizer confidence alone has proven too
+    /// weak to tell a real sentence from the same audio forced through the wrong
+    /// language, which is why the full list is handed upward.
+    private func rankedCandidates() -> [RecognizedSpeech] {
+        var scored: [(score: Double, speech: RecognizedSpeech)] = []
 
         for session in sessions {
             let text = session.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -214,19 +218,15 @@ final class SpeechRecognizer {
             var score = Double(session.confidence)
             score += 0.30 * languageProbability(of: session.language, in: text)
             score += session.bias
-            // Slight preference for the longer transcript — a mismatched
-            // recognizer usually drops words it cannot map.
             score += min(Double(text.count), 60) / 600
 
             debugLog(String(format: "[STT] %@ score %.2f (conf %.2f): %@",
                             session.language.code, score, session.confidence, text))
 
-            if best == nil || score > best!.score {
-                best = (score, RecognizedSpeech(text: text, language: session.language))
-            }
+            scored.append((score, RecognizedSpeech(text: text, language: session.language)))
         }
 
-        return best?.speech
+        return scored.sorted { $0.score > $1.score }.map(\.speech)
     }
 
     /// How strongly a language identifier believes `text` is in `language`.

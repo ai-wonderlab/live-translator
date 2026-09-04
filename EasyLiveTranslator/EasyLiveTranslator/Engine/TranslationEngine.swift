@@ -104,8 +104,8 @@ final class TranslationEngine: ObservableObject {
             translationText = ""
             detectedLanguage = nil
             errorMessage = nil
-            // Listen in both languages at once — whichever recognizer is more
-            // confident decides what was actually spoken.
+            // Listen in every candidate language at once; which one was really
+            // spoken is settled after transcription, not guessed beforehand.
             try speechRecognizer.startListening(candidates: speechCandidates)
             holdStartedAt = Date()
             isListening = true
@@ -126,42 +126,49 @@ final class TranslationEngine: ObservableObject {
 
         do {
             let heard = try await speechRecognizer.stopListening()
-            let recognized = heard.text
-            let spokenLang = heard.language
-            let translateTo = destination(for: spokenLang)
-            transcript = recognized
-            detectedLanguage = spokenLang
-            sourceLanguage = spokenLang
-            targetLanguage = translateTo
-            debugLog("[STT] Recognized (\(spokenLang.code)): \(recognized)")
+            guard let leading = heard.first else {
+                throw SpeechRecognizerError.emptyTranscript
+            }
 
             guard credits.hasCredits else {
                 throw TranslationCreditError.noCredits
             }
 
-            // On-device first (free, offline, instant); cloud backend as fallback.
             let response: TranslationResult
-            if let onDevice = await appleTranslation.translate(
-                text: recognized,
-                langA: spokenLang.code,
-                langB: translateTo.code
-            ) {
+            if heard.count == 1,
+               let onDevice = await appleTranslation.translate(
+                   text: leading.text,
+                   langA: leading.language.code,
+                   langB: destination(for: leading.language).code
+               ) {
+                // Only safe on-device when a single recognizer produced text —
+                // choosing between competing transcripts needs the service.
                 debugLog("[Engine] Translated on-device")
                 response = onDevice
             } else {
                 response = try await api.translate(
-                    text: recognized,
-                    langA: spokenLang,
-                    langB: translateTo
+                    candidates: heard,
+                    target: langB,
+                    home: langA
                 )
             }
+
+            let spokenLang = Language(code: response.detected) ?? leading.language
+            let translateTo = Language(code: response.translationLanguage ?? "")
+                ?? destination(for: spokenLang)
+
+            transcript = response.source ?? leading.text
+            detectedLanguage = spokenLang
+            sourceLanguage = spokenLang
+            targetLanguage = translateTo
             translationText = response.translation
+            debugLog("[Engine] \(spokenLang.code) → \(translateTo.code): \(transcript)")
 
             credits.deduct(recordingSeconds: recordingSeconds)
             lastTranslationAt = Date()
             history.insert(
                 TranslationEntry(
-                    spokenText: recognized,
+                    spokenText: transcript,
                     translatedText: response.translation,
                     sourceLanguage: spokenLang,
                     targetLanguage: translateTo,

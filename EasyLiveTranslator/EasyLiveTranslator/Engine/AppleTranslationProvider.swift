@@ -61,7 +61,9 @@ struct AppleTranslationProvider {
             return TranslationResult(
                 detected: sourceLang,
                 translation: response.targetText,
-                error: nil
+                error: nil,
+                source: text,
+                translationLanguage: targetLang
             )
         } catch {
             debugLog("[Apple] On-device translation failed, using backend: \(error.localizedDescription)")
