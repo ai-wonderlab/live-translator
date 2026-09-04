@@ -87,13 +87,13 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                Spacer(minLength: 12)
+                    .padding(.top, 28)
+                Spacer(minLength: 8)
                 sphereSection
-                Spacer(minLength: 12)
+                Spacer(minLength: 8)
                 translationCard
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
                 #if DEBUG
                 if !engine.lastHeardCandidates.isEmpty {
                     VStack(alignment: .leading, spacing: 2) {
@@ -172,7 +172,7 @@ struct HomeView: View {
     // One choice only: the language to translate INTO. What the user speaks is
     // detected automatically; their own language is a quiet setting underneath.
     private var topBar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Button {
                 showingPairSheet = true
             } label: {
@@ -206,9 +206,9 @@ struct HomeView: View {
     // MARK: Sphere + mic
 
     private var sphereSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             WireSphere(state: micState)
-                .frame(width: 165, height: 165)
+                .frame(width: 150, height: 150)
 
             // Detected language badge
             if let detected = engine.detectedLanguage {
