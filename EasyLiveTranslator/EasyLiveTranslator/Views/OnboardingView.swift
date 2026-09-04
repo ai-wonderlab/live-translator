@@ -16,7 +16,7 @@ struct OnboardingView: View {
             icon: "globe",
             iconColor: .blue,
             title: "\(Language.allCases.count) languages.",
-            subtitle: "Switch between any two languages at any time — great for conversations on the go."
+            subtitle: "Pick the language you want to hear. What you say is detected automatically — just talk."
         ),
         OnboardingStep(
             icon: "clock",

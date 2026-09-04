@@ -67,17 +67,18 @@ struct HomeView: View {
     @StateObject private var engine = TranslationEngine()
     @ObservedObject private var credits = CreditManager.shared
     @StateObject private var storeManager = StoreManager()
-    @AppStorage("langA") private var langACode = Language.greek.code
+    @AppStorage("langA") private var langACode = Language.deviceDefault.code
     @AppStorage("langB") private var langBCode = Language.english.code
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     @State private var showingPairSheet  = false
+    @State private var pickingTarget = true
     @State private var showOnboarding = false
     @State private var showPaywall = false
     @State private var holdHapticFired = false
     @GestureState private var isPressingMic = false
 
-    private var langA: Language { Language(code: langACode) ?? .greek }
+    private var langA: Language { Language(code: langACode) ?? .deviceDefault }
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
@@ -117,9 +118,13 @@ struct HomeView: View {
             if !has { showPaywall = true }
         }
         .sheet(isPresented: $showingPairSheet) {
-            LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            LanguagePickerSheet(
+                title: pickingTarget ? "Translate to" : "You speak",
+                selection: pickingTarget ? $langBCode : $langACode,
+                excluding: pickingTarget ? langACode : langBCode
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPaywall) {
             PaywallSheet(storeManager: storeManager)
@@ -151,35 +156,54 @@ struct HomeView: View {
 
     // MARK: Top bar
 
+    // One choice only: the language to translate INTO. What the user speaks is
+    // detected automatically; their own language is a quiet setting underneath.
     private var topBar: some View {
-        HStack(spacing: 10) {
-            langPill(langA, slot: 1)
-            langPill(langB, slot: 2)
-        }
-    }
-
-    private func langPill(_ lang: Language, slot: Int) -> some View {
-        Button {
-            // Open pair sheet pre-selecting this slot
-            showingPairSheet = true
-        } label: {
-            HStack(spacing: 8) {
-                Text(lang.flag).font(.system(size: 22))
-                Text(lang.displayName)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
-                    .lineLimit(1)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(DS.textTertiary)
+        VStack(spacing: 8) {
+            Button {
+                pickingTarget = true
+                showingPairSheet = true
+            } label: {
+                HStack(spacing: 10) {
+                    Text("Translate to")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.textSecondary)
+                    Text(langB.flag).font(.system(size: 22))
+                    Text(langB.displayName)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(DS.textPrimary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.borderBright, lineWidth: 1))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.borderBright, lineWidth: 1))
+            .buttonStyle(.plain)
+
+            Button {
+                pickingTarget = false
+                showingPairSheet = true
+            } label: {
+                HStack(spacing: 5) {
+                    Text("You speak")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(DS.textTertiary)
+                    Text(langA.flag).font(.system(size: 13))
+                    Text(langA.displayName)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DS.textSecondary)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(DS.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Sphere + mic
@@ -468,59 +492,56 @@ struct MicCapsule: View {
     }
 }
 
-// MARK: - Language Pair Sheet
+// MARK: - Language Picker Sheet
 
-struct LanguagePairSheet: View {
+struct LanguagePickerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var langACode: String
-    @Binding var langBCode: String
+    let title: String
+    @Binding var selection: String
+    /// The other side of the pair — hidden, since translating a language into
+    /// itself is meaningless.
+    let excluding: String
     @State private var search = ""
-    @State private var selecting: Int = 1  // 1 = picking A, 2 = picking B
 
     private var filtered: [Language] {
-        search.isEmpty ? Language.allCases
-            : Language.allCases.filter { $0.displayName.localizedCaseInsensitiveContains(search) }
+        Language.allCases
+            .filter { $0.code != excluding }
+            .filter { search.isEmpty || $0.displayName.localizedCaseInsensitiveContains(search) }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Pair preview
-                HStack(spacing: 12) {
-                    pairSlot(code: langACode, slot: 1)
-                    pairSlot(code: langBCode, slot: 2)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-
-                Divider().background(DS.border)
-
-                List(filtered) { lang in
-                    Button { select(lang) } label: {
-                        HStack(spacing: 14) {
-                            Text(lang.flag).font(.system(size: 26))
-                            Text(lang.displayName)
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .foregroundStyle(DS.textPrimary)
-                            Spacer()
-                            if langACode == lang.code { dot(DS.accent) }
-                            if langBCode == lang.code { dot(DS.speaking) }
+            List(filtered) { lang in
+                Button {
+                    selection = lang.code
+                    dismiss()
+                } label: {
+                    HStack(spacing: 14) {
+                        Text(lang.flag).font(.system(size: 26))
+                        Text(lang.displayName)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DS.textPrimary)
+                        Spacer()
+                        if selection == lang.code {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(DS.accent)
                         }
-                        .padding(.vertical, 4)
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(langACode == lang.code || langBCode == lang.code ? DS.accentSoft : DS.surface)
-                            .padding(.vertical, 2)
-                    )
+                    .padding(.vertical, 4)
                 }
-                .listStyle(.plain)
-                .background(DS.bg)
-                .scrollContentBackground(.hidden)
-                .searchable(text: $search, prompt: "Search language")
+                .buttonStyle(.plain)
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(selection == lang.code ? DS.accentSoft : DS.surface)
+                        .padding(.vertical, 2)
+                )
             }
-            .navigationTitle("Language Pair")
+            .listStyle(.plain)
+            .background(DS.bg)
+            .scrollContentBackground(.hidden)
+            .searchable(text: $search, prompt: "Search language")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -529,43 +550,5 @@ struct LanguagePairSheet: View {
             }
         }
         .background(DS.bg)
-    }
-
-    private func pairSlot(code: String, slot: Int) -> some View {
-        let lang = Language(code: code) ?? .greek
-        let isActive = selecting == slot
-        return Button { selecting = slot } label: {
-            VStack(spacing: 5) {
-                Text(lang.flag).font(.system(size: 30))
-                Text(lang.displayName)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isActive ? DS.textPrimary : DS.textSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(isActive ? DS.accentSoft : DS.surface, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(isActive ? DS.accent.opacity(0.4) : DS.border, lineWidth: isActive ? 1.5 : 1))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func dot(_ color: Color) -> some View {
-        Circle().fill(color).frame(width: 8, height: 8)
-    }
-
-    private func select(_ lang: Language) {
-        if selecting == 1 {
-            langACode = lang.code
-            if langBCode == lang.code {
-                langBCode = lang.code == Language.english.code ? Language.greek.code : Language.english.code
-            }
-            selecting = 2
-        } else {
-            langBCode = lang.code
-            if langACode == lang.code {
-                langACode = lang.code == Language.greek.code ? Language.english.code : Language.greek.code
-            }
-            selecting = 1
-        }
     }
 }
