@@ -12,17 +12,9 @@ final class TranslationEngine: ObservableObject {
     /// the chosen target, and English — the common travel fallback for someone
     /// speaking neither of the other two.
     ///
-    /// English only earns its place when it is neither of the first two, so it
-    /// carries a penalty: it should win when someone genuinely speaks English,
-    /// not because it happened to score a hair higher on Greek audio.
-    private var speechCandidates: [SpeechCandidate] {
+    private var candidateLanguages: [Language] {
         var seen = Set<String>()
-        var candidates: [SpeechCandidate] = []
-        for (language, bias) in [(langA, 0.10), (langB, 0.05), (Language.english, -0.20)] {
-            guard seen.insert(language.code).inserted else { continue }
-            candidates.append(SpeechCandidate(language: language, bias: bias))
-        }
-        return candidates
+        return [langA, langB, .english].filter { seen.insert($0.code).inserted }
     }
 
     /// What a spoken utterance should be translated into: the chosen target,
@@ -108,9 +100,7 @@ final class TranslationEngine: ObservableObject {
             detectedLanguage = nil
             errorMessage = nil
             lastHeardCandidates = []
-            // Listen in every candidate language at once; which one was really
-            // spoken is settled after transcription, not guessed beforehand.
-            try speechRecognizer.startListening(candidates: speechCandidates)
+            try speechRecognizer.startListening()
             holdStartedAt = Date()
             isListening = true
         } catch {
@@ -129,7 +119,9 @@ final class TranslationEngine: ObservableObject {
         let recordingSeconds = startedAt.timeIntervalSince(holdStartedAt)
 
         do {
-            let heard = try await speechRecognizer.stopListening()
+            // The recording is transcribed once per candidate language; which
+            // one was really spoken is settled afterwards, never guessed up front.
+            let heard = try await speechRecognizer.stopListening(languages: candidateLanguages)
             lastHeardCandidates = heard.map { "\($0.language.code): \($0.text)" }
             guard let leading = heard.first else {
                 throw SpeechRecognizerError.emptyTranscript

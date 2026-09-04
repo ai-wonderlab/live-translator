@@ -1,6 +1,5 @@
 import AVFoundation
 import Foundation
-import NaturalLanguage
 import Speech
 
 enum SpeechRecognizerError: LocalizedError {
@@ -17,51 +16,27 @@ enum SpeechRecognizerError: LocalizedError {
     }
 }
 
-/// What was heard, and in which language it was actually spoken.
+/// What was heard, and in which language the recognizer read it.
 struct RecognizedSpeech {
     let text: String
     let language: Language
 }
 
-/// A language to listen for, with how strongly it is expected.
+/// Records an utterance, then transcribes the recording once per candidate
+/// language.
 ///
-/// `bias` is added to the candidate's score, so a language that is only a
-/// fallback (English, when the user speaks neither their own language nor the
-/// target) has to win clearly rather than by a rounding error.
-struct SpeechCandidate {
-    let language: Language
-    let bias: Double
-}
-
-/// Listens in several languages at once and returns the most confident result.
-///
-/// `SFSpeechRecognizer` must be told which language to expect, so a single
-/// recognizer locked to one language mis-transcribes everything else (English
-/// speech comes back as Greek-looking nonsense). Running one recognizer per
-/// candidate language over the same audio buffer and scoring the results is
-/// what makes "just talk, it figures out the language" actually work.
+/// Listening with several live recognizers at once seemed obvious but does not
+/// work: Apple's speech servers reject concurrent requests
+/// (kAFAssistantErrorDomain 1011), so whichever language lacked an on-device
+/// model silently produced nothing — and a language that produced nothing can
+/// never be chosen, no matter how good the selection logic downstream is.
+/// Transcribing a recording one language at a time gives every candidate the
+/// same audio and a fair chance.
 final class SpeechRecognizer {
 
-    private final class Session {
-        let language: Language
-        let bias: Double
-        let recognizer: SFSpeechRecognizer
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        var task: SFSpeechRecognitionTask?
-        var transcript = ""
-        var confidence: Float = 0
-        var isFinished = false
-
-        init(language: Language, bias: Double, recognizer: SFSpeechRecognizer) {
-            self.language = language
-            self.bias = bias
-            self.recognizer = recognizer
-        }
-    }
-
     private let audioEngine = AVAudioEngine()
-    private var sessions: [Session] = []
-    private var finalContinuation: CheckedContinuation<[RecognizedSpeech], Error>?
+    private var audioFile: AVAudioFile?
+    private var recordingURL: URL?
     private var tapInstalled = false
     var onAudioLevel: ((Float) -> Void)?
 
@@ -81,18 +56,9 @@ final class SpeechRecognizer {
         return speechAuthorized && micAuthorized
     }
 
-    /// Starts listening for every candidate at the same time.
-    func startListening(candidates: [SpeechCandidate]) throws {
-        resetSession()
-
-        var started: [Session] = []
-        for candidate in candidates {
-            guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: candidate.language.localeIdentifier)),
-                  recognizer.isAvailable else { continue }
-            started.append(Session(language: candidate.language, bias: candidate.bias, recognizer: recognizer))
-        }
-        guard !started.isEmpty else { throw SpeechRecognizerError.unavailableRecognizer }
-        sessions = started
+    /// Starts recording. Nothing is transcribed until `stopListening`.
+    func startListening() throws {
+        cleanupAudio()
 
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
@@ -100,12 +66,16 @@ final class SpeechRecognizer {
 
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("utterance-\(UUID().uuidString).caf")
+        audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
+        recordingURL = url
+
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             guard let self else { return }
-            for session in self.sessions {
-                session.request.append(buffer)
-            }
-            // RMS level for the waveform.
+            try? self.audioFile?.write(from: buffer)
+
             if let channelData = buffer.floatChannelData?[0] {
                 let frameLength = Int(buffer.frameLength)
                 guard frameLength > 0 else { return }
@@ -121,144 +91,86 @@ final class SpeechRecognizer {
 
         audioEngine.prepare()
         try audioEngine.start()
-
-        for session in sessions {
-            session.request.shouldReportPartialResults = true
-            // On-device wherever it is available: several concurrent recognizers
-            // over Apple's speech servers run into request limits (surfacing as
-            // kAFAssistantErrorDomain 1011), and now that the translation service
-            // decides which transcript was really spoken, the weaker on-device
-            // confidence scores no longer matter. It is also faster, works
-            // offline, and keeps speech on the phone.
-            session.request.requiresOnDeviceRecognition = session.recognizer.supportsOnDeviceRecognition
-
-            session.task = session.recognizer.recognitionTask(with: session.request) { [weak self, weak session] result, error in
-                DispatchQueue.main.async {
-                    guard let self, let session else { return }
-
-                    if let result {
-                        session.transcript = result.bestTranscription.formattedString
-                        let segments = result.bestTranscription.segments
-                        if !segments.isEmpty {
-                            session.confidence = segments.map(\.confidence).reduce(0, +) / Float(segments.count)
-                        }
-                        if result.isFinal {
-                            session.isFinished = true
-                            self.finishIfAllSettled()
-                            return
-                        }
-                    }
-
-                    if let error {
-                        debugLog("[STT] \(session.language.code) failed: \(error.localizedDescription)")
-                        session.isFinished = true
-                        self.finishIfAllSettled()
-                    }
-                }
-            }
-        }
     }
 
-    /// Every transcript that came back, best local guess first. The caller
-    /// decides which one was really spoken — locally when there is only one,
-    /// otherwise by asking the translation service to pick the coherent one.
-    func stopListening() async throws -> [RecognizedSpeech] {
-        guard audioEngine.isRunning else {
-            let results = rankedCandidates()
-            guard !results.isEmpty else { throw SpeechRecognizerError.emptyTranscript }
-            return results
-        }
-
+    /// Stops recording and returns one transcript per language that produced
+    /// speech, in the order the languages were given.
+    func stopListening(languages: [Language]) async throws -> [RecognizedSpeech] {
         audioEngine.stop()
         removeTapIfInstalled()
-        for session in sessions { session.request.endAudio() }
         onAudioLevel?(0)
+        audioFile = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[RecognizedSpeech], Error>) in
-            finalContinuation = continuation
+        guard let url = recordingURL else { throw SpeechRecognizerError.emptyTranscript }
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            recordingURL = nil
+        }
 
-            // Safety net: never leave the continuation hanging if a recognizer stalls.
-            // Recognizers finish at different speeds; cutting off too early
-            // silently drops the slower — and possibly correct — language.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
-                guard let self, self.finalContinuation != nil else { return }
-                self.deliverResult()
+        var results: [RecognizedSpeech] = []
+        for language in languages {
+            if let heard = await transcribe(url: url, language: language) {
+                debugLog("[STT] \(language.code): \(heard.text)")
+                results.append(heard)
+            } else {
+                debugLog("[STT] \(language.code): —")
             }
         }
+
+        guard !results.isEmpty else { throw SpeechRecognizerError.emptyTranscript }
+        return results
     }
 
     // MARK: - Private
 
-    private func finishIfAllSettled() {
-        guard finalContinuation != nil else { return }
-        guard sessions.allSatisfy(\.isFinished) else { return }
-        deliverResult()
-    }
+    private func transcribe(url: URL, language: Language) async -> RecognizedSpeech? {
+        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.localeIdentifier)),
+              recognizer.isAvailable else { return nil }
 
-    private func deliverResult() {
-        guard let continuation = finalContinuation else { return }
-        finalContinuation = nil
-        cleanupAudio()
+        let request = SFSpeechURLRecognitionRequest(url: url)
+        request.shouldReportPartialResults = false
+        request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
 
-        let results = rankedCandidates()
-        if results.isEmpty {
-            continuation.resume(throwing: SpeechRecognizerError.emptyTranscript)
-        } else {
-            continuation.resume(returning: results)
+        return await withCheckedContinuation { continuation in
+            let box = ResumeOnce(continuation)
+            let task = recognizer.recognitionTask(with: request) { result, error in
+                if let result, result.isFinal {
+                    let text = result.bestTranscription.formattedString
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    box.resume(with: text.isEmpty ? nil : RecognizedSpeech(text: text, language: language))
+                } else if let error {
+                    debugLog("[STT] \(language.code) failed: \(error.localizedDescription)")
+                    box.resume(with: nil)
+                }
+            }
+
+            // A recognizer that never calls back must not stall the whole turn.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                if box.resume(with: nil) { task.cancel() }
+            }
         }
     }
 
-    /// All non-empty transcripts, ordered by a local plausibility score.
-    ///
-    /// The ordering is only a hint — recognizer confidence alone has proven too
-    /// weak to tell a real sentence from the same audio forced through the wrong
-    /// language, which is why the full list is handed upward.
-    private func rankedCandidates() -> [RecognizedSpeech] {
-        var scored: [(score: Double, speech: RecognizedSpeech)] = []
+    /// Guarantees a continuation is resumed exactly once, from any queue.
+    private final class ResumeOnce {
+        private let continuation: CheckedContinuation<RecognizedSpeech?, Never>
+        private let lock = NSLock()
+        private var done = false
 
-        for session in sessions {
-            let text = session.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { continue }
-
-            var score = Double(session.confidence)
-            score += 0.30 * languageProbability(of: session.language, in: text)
-            score += session.bias
-            score += min(Double(text.count), 60) / 600
-
-            debugLog(String(format: "[STT] %@ score %.2f (conf %.2f): %@",
-                            session.language.code, score, session.confidence, text))
-
-            scored.append((score, RecognizedSpeech(text: text, language: session.language)))
+        init(_ continuation: CheckedContinuation<RecognizedSpeech?, Never>) {
+            self.continuation = continuation
         }
 
-        return scored.sorted { $0.score > $1.score }.map(\.speech)
-    }
-
-    /// How strongly a language identifier believes `text` is in `language`.
-    private func languageProbability(of language: Language, in text: String) -> Double {
-        let recognizer = NLLanguageRecognizer()
-        recognizer.processString(text)
-        let hypotheses = recognizer.languageHypotheses(withMaximum: 8)
-
-        var total = 0.0
-        for (candidate, probability) in hypotheses where matches(candidate.rawValue, language) {
-            total += probability
+        @discardableResult
+        func resume(with value: RecognizedSpeech?) -> Bool {
+            lock.lock()
+            if done { lock.unlock(); return false }
+            done = true
+            lock.unlock()
+            continuation.resume(returning: value)
+            return true
         }
-        return total
-    }
-
-    private func matches(_ nlCode: String, _ language: Language) -> Bool {
-        if language == .chineseTraditional { return nlCode.hasPrefix("zh-Hant") }
-        if language == .chineseSimplified { return nlCode.hasPrefix("zh") && !nlCode.hasPrefix("zh-Hant") }
-        if nlCode == language.code { return true }
-        return nlCode.hasPrefix(language.code + "-")
-    }
-
-    private func resetSession() {
-        cleanupAudio()
-        for session in sessions { session.task?.cancel() }
-        sessions = []
-        finalContinuation = nil
     }
 
     private func removeTapIfInstalled() {
@@ -271,7 +183,11 @@ final class SpeechRecognizer {
     private func cleanupAudio() {
         if audioEngine.isRunning { audioEngine.stop() }
         removeTapIfInstalled()
-        for session in sessions { session.request.endAudio() }
+        audioFile = nil
+        if let url = recordingURL {
+            try? FileManager.default.removeItem(at: url)
+            recordingURL = nil
+        }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }
