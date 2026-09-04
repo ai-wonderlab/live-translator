@@ -3,9 +3,25 @@ import Combine
 
 @MainActor
 final class TranslationEngine: ObservableObject {
-    // Conversation pair — set from HomeView via AppStorage
+    /// The user's own language (from the device) and the language they chose to
+    /// translate into.
     var langA: Language = .greek
     var langB: Language = .english
+
+    /// Languages the recognizer listens for at the same time: the user's own,
+    /// the chosen target, and English — the common travel fallback for someone
+    /// speaking neither of the other two.
+    private var candidateLanguages: [Language] {
+        var seen = Set<String>()
+        return [langA, langB, .english].filter { seen.insert($0.code).inserted }
+    }
+
+    /// What a spoken utterance should be translated into: the chosen target,
+    /// unless the target is what was just spoken — then it is a reply, and it
+    /// goes back to the user's own language.
+    private func destination(for spoken: Language) -> Language {
+        spoken == langB ? langA : langB
+    }
 
 
     @Published var sourceLanguage: Language = .greek
@@ -81,7 +97,7 @@ final class TranslationEngine: ObservableObject {
             errorMessage = nil
             // Listen in both languages at once — whichever recognizer is more
             // confident decides what was actually spoken.
-            try speechRecognizer.startListening(languages: [langA, langB])
+            try speechRecognizer.startListening(languages: candidateLanguages)
             holdStartedAt = Date()
             isListening = true
         } catch {
@@ -103,7 +119,7 @@ final class TranslationEngine: ObservableObject {
             let heard = try await speechRecognizer.stopListening()
             let recognized = heard.text
             let spokenLang = heard.language
-            let translateTo = (spokenLang == langA) ? langB : langA
+            let translateTo = destination(for: spokenLang)
             transcript = recognized
             detectedLanguage = spokenLang
             sourceLanguage = spokenLang
