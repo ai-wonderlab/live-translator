@@ -74,6 +74,15 @@ function parseModelJson(rawContent) {
   throw new Error("Unable to parse model JSON.");
 }
 
+// The app translates spontaneous speech and reads the result aloud. Both
+// prompts share this so the two code paths never drift in tone.
+const SPOKEN_TRANSLATION_GUIDANCE =
+  "The text is spontaneous spoken conversation, transcribed by speech recognition: it may contain fillers, hesitations, missing punctuation, or small recognition slips. First understand what the speaker meant. " +
+  "Then translate the MEANING the way a fluent native speaker would naturally say it out loud in the same situation — idiomatic and conversational, keeping the speaker's tone, politeness level, and intent. Never translate word for word, never add explanations, and keep it about as long as the original. " +
+  "The translation will be spoken by text-to-speech: use plain natural sentences, no markup, no quotes, no parentheses.";
+
+const DEFAULT_MODEL = "gpt-4.1-mini";
+
 function normalizeLanguage(value) {
   return String(value || "").trim();
 }
@@ -140,7 +149,7 @@ function validateCandidatePayload(payload) {
 /// scores do not.
 async function translateFromCandidates({ candidates, targetLang, homeLang }) {
   const completion = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
     temperature: 0,
     response_format: { type: "json_object" },
     messages: [
@@ -150,7 +159,8 @@ async function translateFromCandidates({ candidates, targetLang, homeLang }) {
           "You are given several transcripts of the SAME spoken audio. Each was produced by a speech recognizer locked to a different language, so at most one is a faithful transcription; the others are the same sounds forced into a language that was not spoken and read as nonsense or as words that do not form a sensible utterance. " +
           "Choose the transcript that is genuinely coherent and meaningful in its own language. " +
           "Translate the chosen transcript into targetLang. If the chosen transcript is already in targetLang, translate it into homeLang instead. " +
-          "Return JSON only, with keys: detected (the language code of the chosen transcript, exactly as given), source (the chosen transcript), translation (the translated text), translation_language (the language code you translated into). No other keys, no commentary.",
+          SPOKEN_TRANSLATION_GUIDANCE +
+          " Return JSON only, with keys: detected (the language code of the chosen transcript, exactly as given), source (the chosen transcript in its own language, with obvious recognition slips corrected and nothing else changed), translation (the translated text), translation_language (the language code you translated into). No other keys, no commentary.",
       },
       {
         role: "user",
@@ -215,14 +225,16 @@ function validatePayload(payload) {
 
 async function translateText({ text, sourceLang, targetLang }) {
   const completion = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
     temperature: 0,
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content:
-          "Return JSON only with keys translation and detected. Decide whether the input text is written in sourceLang or targetLang, set detected to exactly that language value, and translate into the opposite language. Never output extra keys or commentary.",
+          "Decide whether the input text is written in sourceLang or targetLang, set detected to exactly that language value, and translate into the opposite language. " +
+          SPOKEN_TRANSLATION_GUIDANCE +
+          " Return JSON only with keys translation and detected. Never output extra keys or commentary.",
       },
       {
         role: "user",
