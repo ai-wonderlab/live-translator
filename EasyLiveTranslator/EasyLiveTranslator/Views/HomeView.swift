@@ -72,7 +72,6 @@ struct HomeView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     @State private var showingPairSheet  = false
-    @State private var pickingTarget = true
     @State private var showOnboarding = false
     @State private var showPaywall = false
     @State private var holdHapticFired = false
@@ -119,9 +118,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingPairSheet) {
             LanguagePickerSheet(
-                title: pickingTarget ? "Translate to" : "You speak",
-                selection: pickingTarget ? $langBCode : $langACode,
-                excluding: pickingTarget ? langACode : langBCode
+                title: "Translate to",
+                selection: $langBCode,
+                excluding: langACode
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -161,7 +160,6 @@ struct HomeView: View {
     private var topBar: some View {
         VStack(spacing: 8) {
             Button {
-                pickingTarget = true
                 showingPairSheet = true
             } label: {
                 HStack(spacing: 10) {
@@ -185,24 +183,9 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                pickingTarget = false
-                showingPairSheet = true
-            } label: {
-                HStack(spacing: 5) {
-                    Text("You speak")
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundStyle(DS.textTertiary)
-                    Text(langA.flag).font(.system(size: 13))
-                    Text(langA.displayName)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(DS.textSecondary)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(DS.textTertiary)
-                }
-            }
-            .buttonStyle(.plain)
+            Text("Just talk — your language is detected automatically")
+                .font(.system(size: 11, design: .rounded))
+                .foregroundStyle(DS.textTertiary)
         }
     }
 
