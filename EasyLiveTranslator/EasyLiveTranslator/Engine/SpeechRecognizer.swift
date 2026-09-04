@@ -23,6 +23,16 @@ struct RecognizedSpeech {
     let language: Language
 }
 
+/// A language to listen for, with how strongly it is expected.
+///
+/// `bias` is added to the candidate's score, so a language that is only a
+/// fallback (English, when the user speaks neither their own language nor the
+/// target) has to win clearly rather than by a rounding error.
+struct SpeechCandidate {
+    let language: Language
+    let bias: Double
+}
+
 /// Listens in several languages at once and returns the most confident result.
 ///
 /// `SFSpeechRecognizer` must be told which language to expect, so a single
@@ -34,6 +44,7 @@ final class SpeechRecognizer {
 
     private final class Session {
         let language: Language
+        let bias: Double
         let recognizer: SFSpeechRecognizer
         let request = SFSpeechAudioBufferRecognitionRequest()
         var task: SFSpeechRecognitionTask?
@@ -41,8 +52,9 @@ final class SpeechRecognizer {
         var confidence: Float = 0
         var isFinished = false
 
-        init(language: Language, recognizer: SFSpeechRecognizer) {
+        init(language: Language, bias: Double, recognizer: SFSpeechRecognizer) {
             self.language = language
+            self.bias = bias
             self.recognizer = recognizer
         }
     }
@@ -69,15 +81,15 @@ final class SpeechRecognizer {
         return speechAuthorized && micAuthorized
     }
 
-    /// Starts listening for any of `languages` at the same time.
-    func startListening(languages: [Language]) throws {
+    /// Starts listening for every candidate at the same time.
+    func startListening(candidates: [SpeechCandidate]) throws {
         resetSession()
 
         var started: [Session] = []
-        for language in languages {
-            guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.localeIdentifier)),
+        for candidate in candidates {
+            guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: candidate.language.localeIdentifier)),
                   recognizer.isAvailable else { continue }
-            started.append(Session(language: language, recognizer: recognizer))
+            started.append(Session(language: candidate.language, bias: candidate.bias, recognizer: recognizer))
         }
         guard !started.isEmpty else { throw SpeechRecognizerError.unavailableRecognizer }
         sessions = started
@@ -112,9 +124,11 @@ final class SpeechRecognizer {
 
         for session in sessions {
             session.request.shouldReportPartialResults = true
-            // On-device keeps the second recognizer free of Apple's server
-            // request limits, and keeps speech on the phone.
-            session.request.requiresOnDeviceRecognition = session.recognizer.supportsOnDeviceRecognition
+            // Server recognition on purpose: on-device results frequently carry
+            // zero per-segment confidence, and confidence is exactly what tells
+            // the right recognizer apart from one forcing foreign audio into its
+            // own language.
+            session.request.requiresOnDeviceRecognition = false
 
             session.task = session.recognizer.recognitionTask(with: session.request) { [weak self, weak session] result, error in
                 DispatchQueue.main.async {
@@ -184,9 +198,12 @@ final class SpeechRecognizer {
         }
     }
 
-    /// Picks the language whose recognizer produced the most plausible transcript:
-    /// recognizer confidence, plus a bonus when a language identifier agrees that
-    /// the text really is in that language.
+    /// Picks the language whose recognizer produced the most plausible transcript.
+    ///
+    /// A recognizer forced to transcribe audio in a language it does not know
+    /// still returns words — but with visibly lower confidence than the one that
+    /// actually matches. Confidence carries the decision; a language identifier
+    /// run over the transcript and the candidate's own bias break near-ties.
     private func bestCandidate() -> RecognizedSpeech? {
         var best: (score: Double, speech: RecognizedSpeech)?
 
@@ -195,10 +212,14 @@ final class SpeechRecognizer {
             guard !text.isEmpty else { continue }
 
             var score = Double(session.confidence)
-            if identifiedLanguage(of: text) == session.language { score += 0.35 }
+            score += 0.30 * languageProbability(of: session.language, in: text)
+            score += session.bias
             // Slight preference for the longer transcript — a mismatched
             // recognizer usually drops words it cannot map.
             score += min(Double(text.count), 60) / 600
+
+            debugLog(String(format: "[STT] %@ score %.2f (conf %.2f): %@",
+                            session.language.code, score, session.confidence, text))
 
             if best == nil || score > best!.score {
                 best = (score, RecognizedSpeech(text: text, language: session.language))
@@ -208,14 +229,24 @@ final class SpeechRecognizer {
         return best?.speech
     }
 
-    private func identifiedLanguage(of text: String) -> Language? {
+    /// How strongly a language identifier believes `text` is in `language`.
+    private func languageProbability(of language: Language, in text: String) -> Double {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
-        guard let dominant = recognizer.dominantLanguage?.rawValue else { return nil }
-        if dominant.hasPrefix("zh-Hant") { return .chineseTraditional }
-        if dominant.hasPrefix("zh") { return .chineseSimplified }
-        let base = String(dominant.split(separator: "-").first ?? "")
-        return Language(code: base)
+        let hypotheses = recognizer.languageHypotheses(withMaximum: 8)
+
+        var total = 0.0
+        for (candidate, probability) in hypotheses where matches(candidate.rawValue, language) {
+            total += probability
+        }
+        return total
+    }
+
+    private func matches(_ nlCode: String, _ language: Language) -> Bool {
+        if language == .chineseTraditional { return nlCode.hasPrefix("zh-Hant") }
+        if language == .chineseSimplified { return nlCode.hasPrefix("zh") && !nlCode.hasPrefix("zh-Hant") }
+        if nlCode == language.code { return true }
+        return nlCode.hasPrefix(language.code + "-")
     }
 
     private func resetSession() {

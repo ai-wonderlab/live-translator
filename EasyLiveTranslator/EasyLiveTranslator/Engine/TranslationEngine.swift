@@ -11,9 +11,18 @@ final class TranslationEngine: ObservableObject {
     /// Languages the recognizer listens for at the same time: the user's own,
     /// the chosen target, and English — the common travel fallback for someone
     /// speaking neither of the other two.
-    private var candidateLanguages: [Language] {
+    ///
+    /// English only earns its place when it is neither of the first two, so it
+    /// carries a penalty: it should win when someone genuinely speaks English,
+    /// not because it happened to score a hair higher on Greek audio.
+    private var speechCandidates: [SpeechCandidate] {
         var seen = Set<String>()
-        return [langA, langB, .english].filter { seen.insert($0.code).inserted }
+        var candidates: [SpeechCandidate] = []
+        for (language, bias) in [(langA, 0.10), (langB, 0.05), (Language.english, -0.20)] {
+            guard seen.insert(language.code).inserted else { continue }
+            candidates.append(SpeechCandidate(language: language, bias: bias))
+        }
+        return candidates
     }
 
     /// What a spoken utterance should be translated into: the chosen target,
@@ -97,7 +106,7 @@ final class TranslationEngine: ObservableObject {
             errorMessage = nil
             // Listen in both languages at once — whichever recognizer is more
             // confident decides what was actually spoken.
-            try speechRecognizer.startListening(languages: candidateLanguages)
+            try speechRecognizer.startListening(candidates: speechCandidates)
             holdStartedAt = Date()
             isListening = true
         } catch {
