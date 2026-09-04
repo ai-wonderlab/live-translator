@@ -94,6 +94,21 @@ struct HomeView: View {
                 translationCard
                     .padding(.horizontal, 20)
                     .padding(.bottom, 8)
+                #if DEBUG
+                if !engine.lastHeardCandidates.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(engine.lastHeardCandidates, id: \.self) { line in
+                            Text(line)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(DS.textTertiary)
+                                .lineLimit(2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+                }
+                #endif
                 creditsRow
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)

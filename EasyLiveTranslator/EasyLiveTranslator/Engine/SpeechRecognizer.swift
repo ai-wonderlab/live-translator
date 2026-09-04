@@ -178,7 +178,9 @@ final class SpeechRecognizer {
             finalContinuation = continuation
 
             // Safety net: never leave the continuation hanging if a recognizer stalls.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            // Recognizers finish at different speeds; cutting off too early
+            // silently drops the slower — and possibly correct — language.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
                 guard let self, self.finalContinuation != nil else { return }
                 self.deliverResult()
             }

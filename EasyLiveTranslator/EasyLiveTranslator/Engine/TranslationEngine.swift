@@ -47,6 +47,9 @@ final class TranslationEngine: ObservableObject {
     // Short debounce against accidental double-taps; isProcessing already guards overlap.
     private static let translationCooldown: TimeInterval = 0.4
     @Published private(set) var history: [TranslationEntry] = []
+    /// Every transcript the recognizers produced for the last utterance, shown
+    /// in DEBUG builds so a misdetection can be read off the screen.
+    @Published private(set) var lastHeardCandidates: [String] = []
     @Published var permissionsGranted = false
 
     private let speechRecognizer = SpeechRecognizer()
@@ -104,6 +107,7 @@ final class TranslationEngine: ObservableObject {
             translationText = ""
             detectedLanguage = nil
             errorMessage = nil
+            lastHeardCandidates = []
             // Listen in every candidate language at once; which one was really
             // spoken is settled after transcription, not guessed beforehand.
             try speechRecognizer.startListening(candidates: speechCandidates)
@@ -126,6 +130,7 @@ final class TranslationEngine: ObservableObject {
 
         do {
             let heard = try await speechRecognizer.stopListening()
+            lastHeardCandidates = heard.map { "\($0.language.code): \($0.text)" }
             guard let leading = heard.first else {
                 throw SpeechRecognizerError.emptyTranscript
             }
