@@ -72,11 +72,9 @@ struct HomeView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     @State private var showingPairSheet  = false
-    @State private var showingCreditsSheet = false
     @State private var showOnboarding = false
     @State private var showPaywall = false
-    @State private var showProfile = false
-    @ObservedObject private var auth = AuthManager.shared
+    @State private var holdHapticFired = false
     @GestureState private var isPressingMic = false
 
     private var langA: Language { Language(code: langACode) ?? .greek }
@@ -120,16 +118,6 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingPairSheet) {
             LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showingCreditsSheet) {
-            CreditsPurchaseSheet(storeManager: storeManager, credits: credits)
-                .presentationDetents([.fraction(0.48), .medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showProfile) {
-            ProfileSheet(showPaywall: $showPaywall)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
@@ -241,11 +229,18 @@ struct HomeView: View {
                         DragGesture(minimumDistance: 0)
                             .updating($isPressingMic) { _, s, _ in s = true }
                             .onChanged { _ in
-                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                // onChanged fires on every finger movement — haptic once per hold.
+                                if !holdHapticFired {
+                                    holdHapticFired = true
+                                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                }
                                 engine.beginHoldIfNeeded()
                             }
                             .onEnded { _ in
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                holdHapticFired = false
+                                if engine.isListening {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                }
                                 Task { await engine.endHold() }
                             }
                     )
@@ -300,20 +295,13 @@ struct HomeView: View {
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(DS.textSecondary)
             Spacer()
-            Button { showProfile = true } label: {
+            Button { showPaywall = true } label: {
                 Label("Add time", systemImage: "plus")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(DS.accent)
                     .padding(.horizontal, 14).padding(.vertical, 8)
                     .background(DS.accentSoft, in: Capsule())
                     .overlay(Capsule().strokeBorder(DS.accent.opacity(0.18), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-
-            Button { showProfile = true } label: {
-                Image(systemName: auth.isSignedIn ? "person.circle.fill" : "person.circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(auth.isSignedIn ? DS.accent : DS.textSecondary)
             }
             .buttonStyle(.plain)
         }
@@ -579,76 +567,5 @@ struct LanguagePairSheet: View {
             }
             selecting = 1
         }
-    }
-}
-
-// MARK: - Credits Sheet
-
-struct CreditsPurchaseSheet: View {
-    @ObservedObject var storeManager: StoreManager
-    @ObservedObject var credits: CreditManager
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Capsule().fill(Color.white.opacity(0.18)).frame(width: 40, height: 4).padding(.top, 10)
-            VStack(spacing: 6) {
-                Text("Add Translation Time")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.fill").font(.system(size: 12)).foregroundStyle(DS.accent)
-                    Text(credits.displayTime)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(DS.textSecondary)
-                }
-            }
-            if case .failed(let m) = storeManager.purchaseState {
-                Text(m).font(.system(size: 13, design: .rounded)).foregroundStyle(DS.recording).multilineTextAlignment(.center).padding(.horizontal, 24)
-            } else if case .success(let m) = storeManager.purchaseState {
-                Text(m).font(.system(size: 13, design: .rounded)).foregroundStyle(DS.speaking)
-            }
-            if storeManager.products.isEmpty {
-                Text("Loading products...").font(.system(size: 14, design: .rounded)).foregroundStyle(DS.textTertiary).padding(.vertical, 20)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(storeManager.products, id: \.id) { p in
-                        Button { Task { await storeManager.purchase(p) } } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(p.displayName)
-                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(DS.textPrimary)
-                                    Text(durText(p.id))
-                                        .font(.system(size: 12, design: .rounded))
-                                        .foregroundStyle(DS.textTertiary)
-                                }
-                                Spacer()
-                                Text(p.displayPrice)
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                                    .foregroundStyle(DS.accent)
-                            }
-                            .padding(.horizontal, 18).padding(.vertical, 14)
-                            .background(DS.surface, in: RoundedRectangle(cornerRadius: 16))
-                            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DS.border, lineWidth: 1))
-                        }
-                        .buttonStyle(.plain).disabled(isPurchasing).padding(.horizontal, 20)
-                    }
-                }
-            }
-            if isPurchasing { ProgressView().tint(DS.accent) }
-            Text("30 min free trial · 20 sec per translation")
-                .font(.system(size: 12, design: .rounded)).foregroundStyle(DS.textTertiary).multilineTextAlignment(.center)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DS.bg.ignoresSafeArea())
-    }
-
-    private var isPurchasing: Bool {
-        if case .purchasing = storeManager.purchaseState { return true }; return false
-    }
-    private func durText(_ id: String) -> String {
-        let h = (StoreManager.secondsPerProduct[id] ?? 0) / 3600
-        return "\(h) hour\(h == 1 ? "" : "s") of translation"
     }
 }

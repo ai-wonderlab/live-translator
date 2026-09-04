@@ -60,7 +60,7 @@ struct AppleTranslationProvider {
                 error: nil
             )
         } catch {
-            print("[Apple] On-device translation failed, using backend: \(error.localizedDescription)")
+            debugLog("[Apple] On-device translation failed, using backend: \(error.localizedDescription)")
             return nil
         }
     }

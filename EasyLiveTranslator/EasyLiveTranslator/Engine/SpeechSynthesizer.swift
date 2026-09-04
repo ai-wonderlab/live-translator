@@ -27,7 +27,7 @@ final class SpeechSynthesizer: NSObject, @preconcurrency AVSpeechSynthesizerDele
         utterance.voice = voice
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
 
-        print("[TTS] Speaking (\(language.localeIdentifier), voice: \(voice?.name ?? "nil")): \(text)")
+        debugLog("[TTS] Speaking (\(language.localeIdentifier), voice: \(voice?.name ?? "nil")): \(text)")
         synthesizer.stopSpeaking(at: .immediate)
         synthesizer.speak(utterance)
 

@@ -1,9 +1,16 @@
 # STATE.md — Live Translator (πρώην Easy Live Translator)
-_Last updated: 2026-03-30 11:30_
+_Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 
 ---
 
-## Κατάσταση: Active Development
+## Κατάσταση: Pre-launch (submission 2026-09-04)
+
+Δες `AUDIT-2026-09-03.md` για τη λίστα blockers. Στο branch `fix/prelaunch-audit`:
+- Accounts (Supabase/Apple/Google/ProfileSheet) **αφαιρέθηκαν** — credits ζουν μόνο σε iCloud KV
+- Χρέωση ανά **πραγματικό δευτερόλεπτο εγγραφής** (min 3", max 60") αντί flat 20"
+- PaywallSheet = μοναδικό purchase surface, "Add time" ανοίγει απευθείας το paywall
+- PrivacyInfo.xcprivacy, iCloud KV entitlement, ITSAppUsesNonExemptEncryption, UILaunchScreen
+- Logs με user content μόνο σε DEBUG
 
 ---
 

@@ -20,7 +20,9 @@ final class TranslationEngine: ObservableObject {
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
     private var lastTranslationAt: Date = .distantPast
-    private static let translationCooldown: TimeInterval = 2.0
+    private var holdStartedAt: Date = .distantPast
+    // Short debounce against accidental double-taps; isProcessing already guards overlap.
+    private static let translationCooldown: TimeInterval = 0.4
     @Published private(set) var history: [TranslationEntry] = []
     @Published var permissionsGranted = false
 
@@ -80,6 +82,7 @@ final class TranslationEngine: ObservableObject {
             detectedLanguage = nil
             errorMessage = nil
             try speechRecognizer.startListening(language: activeSttLanguage)
+            holdStartedAt = Date()
             isListening = true
         } catch {
             errorMessage = error.localizedDescription
@@ -94,11 +97,12 @@ final class TranslationEngine: ObservableObject {
         errorMessage = nil
 
         let startedAt = Date()
+        let recordingSeconds = startedAt.timeIntervalSince(holdStartedAt)
 
         do {
             let recognized = try await speechRecognizer.stopListening()
             transcript = recognized
-            print("[STT] Recognized: \(recognized)")
+            debugLog("[STT] Recognized: \(recognized)")
 
             guard credits.hasCredits else {
                 throw TranslationCreditError.noCredits
@@ -111,7 +115,7 @@ final class TranslationEngine: ObservableObject {
                 langA: langA.code,
                 langB: langB.code
             ) {
-                print("[Engine] Translated on-device")
+                debugLog("[Engine] Translated on-device")
                 response = onDevice
             } else {
                 response = try await api.translate(
@@ -129,7 +133,7 @@ final class TranslationEngine: ObservableObject {
             let translateTo = (spokenLang == langA) ? langB : langA
             activeSttLanguage = translateTo  // next speaker speaks the other language
 
-            credits.deductTranslation()
+            credits.deduct(recordingSeconds: recordingSeconds)
             lastTranslationAt = Date()
             history.insert(
                 TranslationEntry(
@@ -144,7 +148,7 @@ final class TranslationEngine: ObservableObject {
             await speechSynthesizer.speak(response.translation, language: translateTo)
 
             let elapsed = Date().timeIntervalSince(startedAt)
-            print(String(format: "[TIMING] Total: %.1fs", elapsed))
+            debugLog(String(format: "[TIMING] Total: %.1fs (recorded %.1fs)", elapsed, recordingSeconds))
         } catch {
             errorMessage = error.localizedDescription
         }

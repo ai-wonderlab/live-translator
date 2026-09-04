@@ -44,7 +44,7 @@ struct TranslationAPI {
             )
         )
 
-        print("[API] → POST /translate")
+        debugLog("[API] → POST /translate")
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
@@ -78,7 +78,7 @@ struct TranslationAPI {
         if let apiError = result.error, !apiError.isEmpty {
             throw TranslationAPIError.server("Translation failed. Please try again.")
         }
-        print("[API] ← {detected: \(result.detected), translation: \(result.translation)}")
+        debugLog("[API] ← {detected: \(result.detected), translation: \(result.translation)}")
         return result
     }
 }
