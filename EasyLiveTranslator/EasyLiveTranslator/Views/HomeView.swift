@@ -285,10 +285,15 @@ struct HomeView: View {
             } else {
                 if !engine.translationText.isEmpty {
                     cardLabel("Translation", icon: "text.bubble", color: DS.accent.opacity(0.85))
-                    Text(engine.translationText)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundStyle(DS.textPrimary)
-                        .lineLimit(4)
+                    // Long answers scroll inside the card instead of being cut off.
+                    ScrollView(.vertical, showsIndicators: true) {
+                        Text(engine.translationText)
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DS.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxHeight: 150)
                 }
             }
         }
