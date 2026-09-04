@@ -124,11 +124,13 @@ final class SpeechRecognizer {
 
         for session in sessions {
             session.request.shouldReportPartialResults = true
-            // Server recognition on purpose: on-device results frequently carry
-            // zero per-segment confidence, and confidence is exactly what tells
-            // the right recognizer apart from one forcing foreign audio into its
-            // own language.
-            session.request.requiresOnDeviceRecognition = false
+            // On-device wherever it is available: several concurrent recognizers
+            // over Apple's speech servers run into request limits (surfacing as
+            // kAFAssistantErrorDomain 1011), and now that the translation service
+            // decides which transcript was really spoken, the weaker on-device
+            // confidence scores no longer matter. It is also faster, works
+            // offline, and keeps speech on the phone.
+            session.request.requiresOnDeviceRecognition = session.recognizer.supportsOnDeviceRecognition
 
             session.task = session.recognizer.recognitionTask(with: session.request) { [weak self, weak session] result, error in
                 DispatchQueue.main.async {
@@ -147,7 +149,8 @@ final class SpeechRecognizer {
                         }
                     }
 
-                    if error != nil {
+                    if let error {
+                        debugLog("[STT] \(session.language.code) failed: \(error.localizedDescription)")
                         session.isFinished = true
                         self.finishIfAllSettled()
                     }
