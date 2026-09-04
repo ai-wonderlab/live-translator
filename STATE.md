@@ -71,7 +71,7 @@ _Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 |-|-|
 | **Repo** | https://github.com/ai-wonderlab/live-translator |
 | **Branch** | main |
-| **Device UDID** | `00008030-001434290280802E` |
+| **Device UDID** | `00008140-00167C6A2E07001C` |
 | **iOS** | 26.3.1 |
 | **Backend** | https://backend-gamma-eight-88.vercel.app/api/translate |
 | **Supabase URL** | https://ctrddyzybgeyipsslznw.supabase.co |
@@ -80,9 +80,9 @@ _Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 ### Build & Install
 ```bash
 cd ~/Documents/GitHub/live-translator/EasyLiveTranslator
-xcodebuild -scheme EasyLiveTranslator -destination 'id=00008030-001434290280802E' -allowProvisioningUpdates build
+xcodebuild -scheme EasyLiveTranslator -destination 'id=00008140-00167C6A2E07001C' -allowProvisioningUpdates build
 APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/EasyLiveTranslator-*/Build/Products/Debug-iphoneos -name "EasyLiveTranslator.app" | head -1)
-xcrun devicectl device install app --device 00008030-001434290280802E "$APP_PATH"
+xcrun devicectl device install app --device 00008140-00167C6A2E07001C "$APP_PATH"
 ```
 
 ---
