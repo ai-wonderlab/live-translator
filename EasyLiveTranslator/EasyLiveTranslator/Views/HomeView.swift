@@ -106,12 +106,11 @@ struct HomeView: View {
         .task {
             engine.langA = langA
             engine.langB = langB
-            engine.activeSttLanguage = langA
             await engine.prepareForLaunch()
             await storeManager.loadProducts()
             if !hasSeenOnboarding { showOnboarding = true }
         }
-        .onChange(of: langACode) { _, _ in engine.langA = langA; engine.activeSttLanguage = langA }
+        .onChange(of: langACode) { _, _ in engine.langA = langA }
         .onChange(of: langBCode) { _, _ in engine.langB = langB }
         .onChange(of: credits.hasCredits) { _, has in
             if !has { showPaywall = true }

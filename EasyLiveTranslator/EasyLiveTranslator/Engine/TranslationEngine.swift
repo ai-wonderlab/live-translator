@@ -7,8 +7,6 @@ final class TranslationEngine: ObservableObject {
     var langA: Language = .greek
     var langB: Language = .english
 
-    // Active STT language — alternates after each translation
-    var activeSttLanguage: Language = .greek
 
     @Published var sourceLanguage: Language = .greek
     @Published var targetLanguage: Language = .english
@@ -47,7 +45,7 @@ final class TranslationEngine: ObservableObject {
             return "Translating..."
         }
         if isListening {
-            return "Listening in \(sourceLanguage.displayName)..."
+            return "Listening..."
         }
         return "Hold the button, speak in \(sourceLanguage.displayName), then release."
     }
@@ -81,7 +79,9 @@ final class TranslationEngine: ObservableObject {
             translationText = ""
             detectedLanguage = nil
             errorMessage = nil
-            try speechRecognizer.startListening(language: activeSttLanguage)
+            // Listen in both languages at once — whichever recognizer is more
+            // confident decides what was actually spoken.
+            try speechRecognizer.startListening(languages: [langA, langB])
             holdStartedAt = Date()
             isListening = true
         } catch {
@@ -100,9 +100,15 @@ final class TranslationEngine: ObservableObject {
         let recordingSeconds = startedAt.timeIntervalSince(holdStartedAt)
 
         do {
-            let recognized = try await speechRecognizer.stopListening()
+            let heard = try await speechRecognizer.stopListening()
+            let recognized = heard.text
+            let spokenLang = heard.language
+            let translateTo = (spokenLang == langA) ? langB : langA
             transcript = recognized
-            debugLog("[STT] Recognized: \(recognized)")
+            detectedLanguage = spokenLang
+            sourceLanguage = spokenLang
+            targetLanguage = translateTo
+            debugLog("[STT] Recognized (\(spokenLang.code)): \(recognized)")
 
             guard credits.hasCredits else {
                 throw TranslationCreditError.noCredits
@@ -112,26 +118,19 @@ final class TranslationEngine: ObservableObject {
             let response: TranslationResult
             if let onDevice = await appleTranslation.translate(
                 text: recognized,
-                langA: langA.code,
-                langB: langB.code
+                langA: spokenLang.code,
+                langB: translateTo.code
             ) {
                 debugLog("[Engine] Translated on-device")
                 response = onDevice
             } else {
                 response = try await api.translate(
                     text: recognized,
-                    langA: langA,
-                    langB: langB
+                    langA: spokenLang,
+                    langB: translateTo
                 )
             }
             translationText = response.translation
-            let detected = Language(code: response.detected ?? "") ?? activeSttLanguage
-            detectedLanguage = detected
-
-            // Conversation mode: if A spoke → next time listen for B, and vice versa
-            let spokenLang = detected
-            let translateTo = (spokenLang == langA) ? langB : langA
-            activeSttLanguage = translateTo  // next speaker speaks the other language
 
             credits.deduct(recordingSeconds: recordingSeconds)
             lastTranslationAt = Date()
