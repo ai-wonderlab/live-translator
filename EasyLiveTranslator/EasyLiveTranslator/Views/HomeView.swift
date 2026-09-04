@@ -82,12 +82,14 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            DS.bg
-            ambientBackground
+            // Only the backdrop runs edge to edge; content stays inside the
+            // safe area so nothing sits under the Dynamic Island or home bar.
+            DS.bg.ignoresSafeArea()
+            ambientBackground.ignoresSafeArea()
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
-                    .padding(.top, 28)
+                    .padding(.top, 12)
                 Spacer(minLength: 8)
                 sphereSection
                 Spacer(minLength: 8)
@@ -111,11 +113,9 @@ struct HomeView: View {
                 #endif
                 creditsRow
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 8)
             }
-            .safeAreaPadding()
         }
-        .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { forceFullScreen() }
         .task {
