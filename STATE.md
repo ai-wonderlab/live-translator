@@ -1,9 +1,16 @@
 # STATE.md — Live Translator (πρώην Easy Live Translator)
-_Last updated: 2026-03-30 11:30_
+_Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 
 ---
 
-## Κατάσταση: Active Development
+## Κατάσταση: Pre-launch (submission 2026-09-04)
+
+Δες `AUDIT-2026-09-03.md` για τη λίστα blockers. Στο branch `fix/prelaunch-audit`:
+- Accounts (Supabase/Apple/Google/ProfileSheet) **αφαιρέθηκαν** — credits ζουν μόνο σε iCloud KV
+- Χρέωση ανά **πραγματικό δευτερόλεπτο εγγραφής** (min 3", max 60") αντί flat 20"
+- PaywallSheet = μοναδικό purchase surface, "Add time" ανοίγει απευθείας το paywall
+- PrivacyInfo.xcprivacy, iCloud KV entitlement, ITSAppUsesNonExemptEncryption, UILaunchScreen
+- Logs με user content μόνο σε DEBUG
 
 ---
 
@@ -16,7 +23,7 @@ _Last updated: 2026-03-30 11:30_
 | 38 Γλώσσες | Full list incl. Albanian, Romanian, Ukrainian κτλ |
 | Supabase Auth | Apple Sign In + email/password — λειτουργικό |
 | ProfileSheet | Person icon στο creditsRow, πάντα ορατό |
-| PaywallSheet | Trigger όταν credits=0, 4 plans (€0.99/3.99/6.99/24.99) |
+| PaywallSheet | Trigger όταν credits=0 ή από "Add time" — 4 consumables, τιμές από App Store Connect (`displayPrice`) |
 | Mic Lock | 🔒 + disabled όταν credits=0, πατώντας ανοίγει paywall |
 | Free Trial | 30 λεπτά δωρεάν, CreditManager ήδη υλοποιημένο |
 
@@ -62,9 +69,13 @@ _Last updated: 2026-03-30 11:30_
 
 | | |
 |-|-|
+| **Team ID** | `4377RHJY7Z` (WDMF PC — paid Apple Developer Program) |
+| **App Store name** | Live Translator – Talk & Go (ASC record δημιουργήθηκε 2026-09-08) |
+| **IAP τιμές (ASC)** | 1h = **€1.99** (ορίστηκε 2026-09-08). 5h / 10h / 50h: εκκρεμούν — πρόταση €4.99 / €8.99 / €29.99. Η ΜΟΝΗ πηγή αλήθειας είναι το App Store Connect· το `Configuration.storekit` είναι μόνο για τοπικό testing |
+| **Bundle ID** | `gr.easyfair.livetranslator` (το παλιό `gr.easyfair.app` έμεινε στο personal team VKS7898WXK) |
 | **Repo** | https://github.com/ai-wonderlab/live-translator |
 | **Branch** | main |
-| **Device UDID** | `00008030-001434290280802E` |
+| **Device UDID** | `00008140-00167C6A2E07001C` |
 | **iOS** | 26.3.1 |
 | **Backend** | https://backend-gamma-eight-88.vercel.app/api/translate |
 | **Supabase URL** | https://ctrddyzybgeyipsslznw.supabase.co |
@@ -73,9 +84,9 @@ _Last updated: 2026-03-30 11:30_
 ### Build & Install
 ```bash
 cd ~/Documents/GitHub/live-translator/EasyLiveTranslator
-xcodebuild -scheme EasyLiveTranslator -destination 'id=00008030-001434290280802E' -allowProvisioningUpdates build
+xcodebuild -scheme EasyLiveTranslator -destination 'id=00008140-00167C6A2E07001C' -allowProvisioningUpdates build
 APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/EasyLiveTranslator-*/Build/Products/Debug-iphoneos -name "EasyLiveTranslator.app" | head -1)
-xcrun devicectl device install app --device 00008030-001434290280802E "$APP_PATH"
+xcrun devicectl device install app --device 00008140-00167C6A2E07001C "$APP_PATH"
 ```
 
 ---

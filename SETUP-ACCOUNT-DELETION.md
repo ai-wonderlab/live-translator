@@ -1,22 +1,5 @@
-# Account Deletion — Supabase Setup
+# Account Deletion — OBSOLETE
 
-Το app καλεί `supabase.rpc("delete_user")`. Χρειάζεται μία φορά αυτό το SQL στο Supabase dashboard (SQL Editor):
+Το account layer (Supabase auth, Sign in with Apple, Google, delete account) **αφαιρέθηκε στο v1.0** (branch `fix/prelaunch-audit`, 2026-09-04). Δεν υπάρχουν accounts, άρα η Guideline 5.1.1(v) δεν εφαρμόζεται.
 
-```sql
-create or replace function public.delete_user()
-returns void
-language sql
-security definer
-set search_path = ''
-as $$
-  delete from auth.users where id = auth.uid();
-$$;
-
--- Μόνο authenticated users μπορούν να το καλέσουν
-revoke execute on function public.delete_user() from anon, public;
-grant execute on function public.delete_user() to authenticated;
-```
-
-Έλεγχος: sign in στο app → Profile → Delete Account → confirm → ο user πρέπει να εξαφανιστεί από Authentication → Users.
-
-_Απαραίτητο για App Store Guideline 5.1.1(v): apps με account creation πρέπει να προσφέρουν account deletion μέσα στο app._
+Αν επανέλθουν accounts σε μελλοντική έκδοση, το SQL για το `delete_user` RPC βρίσκεται στο git history (`git show 43ed621:SETUP-ACCOUNT-DELETION.md`).

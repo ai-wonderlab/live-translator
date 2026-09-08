@@ -20,13 +20,25 @@ enum TranslationAPIError: LocalizedError {
 struct TranslationAPI {
     private let endpoint = URL(string: "https://backend-gamma-eight-88.vercel.app/api/translate")!
 
+    /// Sends every transcript the recognizers produced and lets the service
+    /// decide which one was actually spoken before translating it.
     func translate(
-        text: String,
-        langA: Language,
-        langB: Language
+        candidates: [RecognizedSpeech],
+        target: Language,
+        home: Language
     ) async throws -> TranslationResult {
-        let sourceLanguage = langA
-        let targetLanguage = langB
+        try await post(
+            CandidateRequest(
+                candidates: candidates.map {
+                    CandidateRequest.Candidate(lang: $0.language.code, text: $0.text)
+                },
+                targetLang: target.code,
+                homeLang: home.code
+            )
+        )
+    }
+
+    private func post<Body: Encodable>(_ body: Body) async throws -> TranslationResult {
         guard let appSecret = Bundle.main.object(forInfoDictionaryKey: "TranslationAPIAppSecret") as? String,
               !appSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw TranslationAPIError.missingAppSecret
@@ -36,15 +48,9 @@ struct TranslationAPI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(appSecret, forHTTPHeaderField: "X-App-Secret")
-        request.httpBody = try JSONEncoder().encode(
-            TranslateRequest(
-                text: text,
-                sourceLang: langA.code,
-                targetLang: langB.code
-            )
-        )
+        request.httpBody = try JSONEncoder().encode(body)
 
-        print("[API] → POST /translate")
+        debugLog("[API] → POST /translate")
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
@@ -78,13 +84,18 @@ struct TranslationAPI {
         if let apiError = result.error, !apiError.isEmpty {
             throw TranslationAPIError.server("Translation failed. Please try again.")
         }
-        print("[API] ← {detected: \(result.detected), translation: \(result.translation)}")
+        debugLog("[API] ← {detected: \(result.detected), translation: \(result.translation)}")
         return result
     }
 }
 
-private struct TranslateRequest: Encodable {
-    let text: String
-    let sourceLang: String
+private struct CandidateRequest: Encodable {
+    struct Candidate: Encodable {
+        let lang: String
+        let text: String
+    }
+
+    let candidates: [Candidate]
     let targetLang: String
+    let homeLang: String
 }

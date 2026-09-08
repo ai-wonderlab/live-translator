@@ -3,12 +3,25 @@ import Combine
 
 @MainActor
 final class TranslationEngine: ObservableObject {
-    // Conversation pair — set from HomeView via AppStorage
+    /// The user's own language (from the device) and the language they chose to
+    /// translate into.
     var langA: Language = .greek
     var langB: Language = .english
 
-    // Active STT language — alternates after each translation
-    var activeSttLanguage: Language = .greek
+    /// Languages the recording is transcribed in: the user's own, the chosen
+    /// target, and English — the common fallback for someone speaking neither.
+    private var candidateLanguages: [Language] {
+        var seen = Set<String>()
+        return [langA, langB, .english].filter { seen.insert($0.code).inserted }
+    }
+
+    /// What a spoken utterance should be translated into: the chosen target,
+    /// unless the target is what was just spoken — then it is a reply, and it
+    /// goes back to the user's own language.
+    private func destination(for spoken: Language) -> Language {
+        spoken == langB ? langA : langB
+    }
+
 
     @Published var sourceLanguage: Language = .greek
     @Published var targetLanguage: Language = .english
@@ -20,8 +33,13 @@ final class TranslationEngine: ObservableObject {
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
     private var lastTranslationAt: Date = .distantPast
-    private static let translationCooldown: TimeInterval = 2.0
+    private var holdStartedAt: Date = .distantPast
+    // Short debounce against accidental double-taps; isProcessing already guards overlap.
+    private static let translationCooldown: TimeInterval = 0.4
     @Published private(set) var history: [TranslationEntry] = []
+    /// Every transcript the recognizers produced for the last utterance, shown
+    /// in DEBUG builds so a misdetection can be read off the screen.
+    @Published private(set) var lastHeardCandidates: [String] = []
     @Published var permissionsGranted = false
 
     private let speechRecognizer = SpeechRecognizer()
@@ -45,7 +63,7 @@ final class TranslationEngine: ObservableObject {
             return "Translating..."
         }
         if isListening {
-            return "Listening in \(sourceLanguage.displayName)..."
+            return "Listening..."
         }
         return "Hold the button, speak in \(sourceLanguage.displayName), then release."
     }
@@ -79,7 +97,9 @@ final class TranslationEngine: ObservableObject {
             translationText = ""
             detectedLanguage = nil
             errorMessage = nil
-            try speechRecognizer.startListening(language: activeSttLanguage)
+            lastHeardCandidates = []
+            try speechRecognizer.startListening()
+            holdStartedAt = Date()
             isListening = true
         } catch {
             errorMessage = error.localizedDescription
@@ -94,46 +114,56 @@ final class TranslationEngine: ObservableObject {
         errorMessage = nil
 
         let startedAt = Date()
+        let recordingSeconds = startedAt.timeIntervalSince(holdStartedAt)
 
         do {
-            let recognized = try await speechRecognizer.stopListening()
-            transcript = recognized
-            print("[STT] Recognized: \(recognized)")
+            // The recording is transcribed once per candidate language; which
+            // one was really spoken is settled afterwards, never guessed up front.
+            let heard = try await speechRecognizer.stopListening(languages: candidateLanguages)
+            lastHeardCandidates = heard.map { "\($0.language.code): \($0.text)" }
+            guard let leading = heard.first else {
+                throw SpeechRecognizerError.emptyTranscript
+            }
 
             guard credits.hasCredits else {
                 throw TranslationCreditError.noCredits
             }
 
-            // On-device first (free, offline, instant); cloud backend as fallback.
             let response: TranslationResult
-            if let onDevice = await appleTranslation.translate(
-                text: recognized,
-                langA: langA.code,
-                langB: langB.code
-            ) {
-                print("[Engine] Translated on-device")
+            if heard.count == 1,
+               let onDevice = await appleTranslation.translate(
+                   text: leading.text,
+                   langA: leading.language.code,
+                   langB: destination(for: leading.language).code
+               ) {
+                // Only safe on-device when a single recognizer produced text —
+                // choosing between competing transcripts needs the service.
+                debugLog("[Engine] Translated on-device")
                 response = onDevice
             } else {
                 response = try await api.translate(
-                    text: recognized,
-                    langA: langA,
-                    langB: langB
+                    candidates: heard,
+                    target: langB,
+                    home: langA
                 )
             }
+
+            let spokenLang = Language(code: response.detected) ?? leading.language
+            let translateTo = Language(code: response.translationLanguage ?? "")
+                ?? destination(for: spokenLang)
+
+            transcript = response.source ?? leading.text
+            detectedLanguage = spokenLang
+            sourceLanguage = spokenLang
+            targetLanguage = translateTo
             translationText = response.translation
-            let detected = Language(code: response.detected ?? "") ?? activeSttLanguage
-            detectedLanguage = detected
+            debugLog("[Engine] \(spokenLang.code) → \(translateTo.code): \(transcript)")
 
-            // Conversation mode: if A spoke → next time listen for B, and vice versa
-            let spokenLang = detected
-            let translateTo = (spokenLang == langA) ? langB : langA
-            activeSttLanguage = translateTo  // next speaker speaks the other language
-
-            credits.deductTranslation()
+            credits.deduct(recordingSeconds: recordingSeconds)
             lastTranslationAt = Date()
             history.insert(
                 TranslationEntry(
-                    spokenText: recognized,
+                    spokenText: transcript,
                     translatedText: response.translation,
                     sourceLanguage: spokenLang,
                     targetLanguage: translateTo,
@@ -144,7 +174,7 @@ final class TranslationEngine: ObservableObject {
             await speechSynthesizer.speak(response.translation, language: translateTo)
 
             let elapsed = Date().timeIntervalSince(startedAt)
-            print(String(format: "[TIMING] Total: %.1fs", elapsed))
+            debugLog(String(format: "[TIMING] Total: %.1fs (recorded %.1fs)", elapsed, recordingSeconds))
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -15,13 +15,18 @@ final class CreditManager: ObservableObject {
     static let shared = CreditManager()
 
     static let freeTrialSeconds = 1800
-    static let secondsPerTranslation = 20
+    /// Billing is by real recording time (how long the button is held),
+    /// clamped so a tap can't cost less than this and a stuck hold can't cost more than `maxSecondsPerTranslation`.
+    static let minSecondsPerTranslation = 3
+    static let maxSecondsPerTranslation = 60
 
     private static let creditSecondsKey = "creditSeconds"
     private static let freeTrialConsumedKey = "freeTrialConsumedSeconds"
+    private static let hasEverPurchasedKey = "hasEverPurchased"
 
     @Published private(set) var remainingSeconds: Int
     @Published private(set) var freeTrialConsumedSeconds: Int
+    @Published private(set) var hasEverPurchased: Bool
 
     private let defaults: UserDefaults
     private let cloudStore: UbiquitousKeyValueStoring
@@ -55,6 +60,7 @@ final class CreditManager: ObservableObject {
         self.cloudStore = cloudStore
         self.remainingSeconds = max(0, Int(cloudStore.longLong(forKey: Self.creditSecondsKey)))
         self.freeTrialConsumedSeconds = max(0, defaults.integer(forKey: Self.freeTrialConsumedKey))
+        self.hasEverPurchased = defaults.bool(forKey: Self.hasEverPurchasedKey)
         observeCloudChangesIfNeeded()
         refreshFromStorage()
     }
@@ -65,17 +71,20 @@ final class CreditManager: ObservableObject {
         }
     }
 
-    func deductTranslation() {
-        let deduction = Self.secondsPerTranslation
+    /// Deducts the real recording duration. Free-trial time is consumed first;
+    /// any remainder comes out of purchased time.
+    func deduct(recordingSeconds: Double) {
+        var deduction = Int(recordingSeconds.rounded(.up))
+        deduction = min(Self.maxSecondsPerTranslation, max(Self.minSecondsPerTranslation, deduction))
 
         if remainingFreeTrialSeconds > 0 {
-            let consumed = min(Self.freeTrialSeconds, freeTrialConsumedSeconds + deduction)
-            freeTrialConsumedSeconds = consumed
-            defaults.set(consumed, forKey: Self.freeTrialConsumedKey)
-            return
+            let fromTrial = min(remainingFreeTrialSeconds, deduction)
+            freeTrialConsumedSeconds = min(Self.freeTrialSeconds, freeTrialConsumedSeconds + fromTrial)
+            defaults.set(freeTrialConsumedSeconds, forKey: Self.freeTrialConsumedKey)
+            deduction -= fromTrial
         }
 
-        guard remainingSeconds > 0 else { return }
+        guard deduction > 0, remainingSeconds > 0 else { return }
 
         remainingSeconds = max(0, remainingSeconds - deduction)
         savePurchasedSeconds()
@@ -84,6 +93,8 @@ final class CreditManager: ObservableObject {
     func addSeconds(_ seconds: Int) {
         guard seconds > 0 else { return }
         remainingSeconds += seconds
+        hasEverPurchased = true
+        defaults.set(true, forKey: Self.hasEverPurchasedKey)
         savePurchasedSeconds()
     }
 

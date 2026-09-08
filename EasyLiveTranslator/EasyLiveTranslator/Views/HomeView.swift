@@ -67,71 +67,77 @@ struct HomeView: View {
     @StateObject private var engine = TranslationEngine()
     @ObservedObject private var credits = CreditManager.shared
     @StateObject private var storeManager = StoreManager()
-    @AppStorage("langA") private var langACode = Language.greek.code
+    @AppStorage("langA") private var langACode = Language.deviceDefault.code
     @AppStorage("langB") private var langBCode = Language.english.code
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     @State private var showingPairSheet  = false
-    @State private var showingCreditsSheet = false
     @State private var showOnboarding = false
     @State private var showPaywall = false
-    @State private var showProfile = false
-    @ObservedObject private var auth = AuthManager.shared
+    @State private var holdHapticFired = false
     @GestureState private var isPressingMic = false
 
-    private var langA: Language { Language(code: langACode) ?? .greek }
+    private var langA: Language { Language(code: langACode) ?? .deviceDefault }
     private var langB: Language { Language(code: langBCode) ?? .english }
 
     var body: some View {
         ZStack {
-            DS.bg
-            ambientBackground
+            // Only the backdrop runs edge to edge; content stays inside the
+            // safe area so nothing sits under the Dynamic Island or home bar.
+            DS.bg.ignoresSafeArea()
+            ambientBackground.ignoresSafeArea()
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                Spacer(minLength: 12)
+                    .padding(.top, 12)
+                Spacer(minLength: 8)
                 sphereSection
-                Spacer(minLength: 12)
+                Spacer(minLength: 8)
                 translationCard
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
+                #if DEBUG
+                if !engine.lastHeardCandidates.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(engine.lastHeardCandidates, id: \.self) { line in
+                            Text(line)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(DS.textTertiary)
+                                .lineLimit(2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+                }
+                #endif
                 creditsRow
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 8)
             }
-            .safeAreaPadding()
         }
-        .ignoresSafeArea(.all)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { forceFullScreen() }
         .task {
             engine.langA = langA
             engine.langB = langB
-            engine.activeSttLanguage = langA
             await engine.prepareForLaunch()
             await storeManager.loadProducts()
             if !hasSeenOnboarding { showOnboarding = true }
         }
-        .onChange(of: langACode) { _, _ in engine.langA = langA; engine.activeSttLanguage = langA }
+        .onChange(of: langACode) { _, _ in engine.langA = langA }
         .onChange(of: langBCode) { _, _ in engine.langB = langB }
         .onChange(of: credits.hasCredits) { _, has in
             if !has { showPaywall = true }
         }
         .sheet(isPresented: $showingPairSheet) {
-            LanguagePairSheet(langACode: $langACode, langBCode: $langBCode)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showingCreditsSheet) {
-            CreditsPurchaseSheet(storeManager: storeManager, credits: credits)
-                .presentationDetents([.fraction(0.48), .medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showProfile) {
-            ProfileSheet(showPaywall: $showPaywall)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            LanguagePickerSheet(
+                title: "Translate to",
+                selection: $langBCode,
+                excluding: langACode
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPaywall) {
             PaywallSheet(storeManager: storeManager)
@@ -163,43 +169,46 @@ struct HomeView: View {
 
     // MARK: Top bar
 
+    // One choice only: the language to translate INTO. What the user speaks is
+    // detected automatically; their own language is a quiet setting underneath.
     private var topBar: some View {
-        HStack(spacing: 10) {
-            langPill(langA, slot: 1)
-            langPill(langB, slot: 2)
-        }
-    }
-
-    private func langPill(_ lang: Language, slot: Int) -> some View {
-        Button {
-            // Open pair sheet pre-selecting this slot
-            showingPairSheet = true
-        } label: {
-            HStack(spacing: 8) {
-                Text(lang.flag).font(.system(size: 22))
-                Text(lang.displayName)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
-                    .lineLimit(1)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(DS.textTertiary)
+        VStack(spacing: 6) {
+            Button {
+                showingPairSheet = true
+            } label: {
+                HStack(spacing: 10) {
+                    Text("Translate to")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(DS.textSecondary)
+                    Text(langB.flag).font(.system(size: 22))
+                    Text(langB.displayName)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(DS.textPrimary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.borderBright, lineWidth: 1))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.borderBright, lineWidth: 1))
+            .buttonStyle(.plain)
+
+            Text("Just talk — your language is detected automatically")
+                .font(.system(size: 11, design: .rounded))
+                .foregroundStyle(DS.textTertiary)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Sphere + mic
 
     private var sphereSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             WireSphere(state: micState)
-                .frame(width: 165, height: 165)
+                .frame(width: 150, height: 150)
 
             // Detected language badge
             if let detected = engine.detectedLanguage {
@@ -241,11 +250,18 @@ struct HomeView: View {
                         DragGesture(minimumDistance: 0)
                             .updating($isPressingMic) { _, s, _ in s = true }
                             .onChanged { _ in
-                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                // onChanged fires on every finger movement — haptic once per hold.
+                                if !holdHapticFired {
+                                    holdHapticFired = true
+                                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                }
                                 engine.beginHoldIfNeeded()
                             }
                             .onEnded { _ in
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                holdHapticFired = false
+                                if engine.isListening {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                }
                                 Task { await engine.endHold() }
                             }
                     )
@@ -269,10 +285,15 @@ struct HomeView: View {
             } else {
                 if !engine.translationText.isEmpty {
                     cardLabel("Translation", icon: "text.bubble", color: DS.accent.opacity(0.85))
-                    Text(engine.translationText)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundStyle(DS.textPrimary)
-                        .lineLimit(4)
+                    // Long answers scroll inside the card instead of being cut off.
+                    ScrollView(.vertical, showsIndicators: true) {
+                        Text(engine.translationText)
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DS.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxHeight: 150)
                 }
             }
         }
@@ -300,20 +321,13 @@ struct HomeView: View {
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(DS.textSecondary)
             Spacer()
-            Button { showProfile = true } label: {
+            Button { showPaywall = true } label: {
                 Label("Add time", systemImage: "plus")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(DS.accent)
                     .padding(.horizontal, 14).padding(.vertical, 8)
                     .background(DS.accentSoft, in: Capsule())
                     .overlay(Capsule().strokeBorder(DS.accent.opacity(0.18), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-
-            Button { showProfile = true } label: {
-                Image(systemName: auth.isSignedIn ? "person.circle.fill" : "person.circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(auth.isSignedIn ? DS.accent : DS.textSecondary)
             }
             .buttonStyle(.plain)
         }
@@ -480,59 +494,56 @@ struct MicCapsule: View {
     }
 }
 
-// MARK: - Language Pair Sheet
+// MARK: - Language Picker Sheet
 
-struct LanguagePairSheet: View {
+struct LanguagePickerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var langACode: String
-    @Binding var langBCode: String
+    let title: String
+    @Binding var selection: String
+    /// The other side of the pair — hidden, since translating a language into
+    /// itself is meaningless.
+    let excluding: String
     @State private var search = ""
-    @State private var selecting: Int = 1  // 1 = picking A, 2 = picking B
 
     private var filtered: [Language] {
-        search.isEmpty ? Language.allCases
-            : Language.allCases.filter { $0.displayName.localizedCaseInsensitiveContains(search) }
+        Language.allCases
+            .filter { $0.code != excluding }
+            .filter { search.isEmpty || $0.displayName.localizedCaseInsensitiveContains(search) }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Pair preview
-                HStack(spacing: 12) {
-                    pairSlot(code: langACode, slot: 1)
-                    pairSlot(code: langBCode, slot: 2)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-
-                Divider().background(DS.border)
-
-                List(filtered) { lang in
-                    Button { select(lang) } label: {
-                        HStack(spacing: 14) {
-                            Text(lang.flag).font(.system(size: 26))
-                            Text(lang.displayName)
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .foregroundStyle(DS.textPrimary)
-                            Spacer()
-                            if langACode == lang.code { dot(DS.accent) }
-                            if langBCode == lang.code { dot(DS.speaking) }
+            List(filtered) { lang in
+                Button {
+                    selection = lang.code
+                    dismiss()
+                } label: {
+                    HStack(spacing: 14) {
+                        Text(lang.flag).font(.system(size: 26))
+                        Text(lang.displayName)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DS.textPrimary)
+                        Spacer()
+                        if selection == lang.code {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(DS.accent)
                         }
-                        .padding(.vertical, 4)
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(langACode == lang.code || langBCode == lang.code ? DS.accentSoft : DS.surface)
-                            .padding(.vertical, 2)
-                    )
+                    .padding(.vertical, 4)
                 }
-                .listStyle(.plain)
-                .background(DS.bg)
-                .scrollContentBackground(.hidden)
-                .searchable(text: $search, prompt: "Search language")
+                .buttonStyle(.plain)
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(selection == lang.code ? DS.accentSoft : DS.surface)
+                        .padding(.vertical, 2)
+                )
             }
-            .navigationTitle("Language Pair")
+            .listStyle(.plain)
+            .background(DS.bg)
+            .scrollContentBackground(.hidden)
+            .searchable(text: $search, prompt: "Search language")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -541,114 +552,5 @@ struct LanguagePairSheet: View {
             }
         }
         .background(DS.bg)
-    }
-
-    private func pairSlot(code: String, slot: Int) -> some View {
-        let lang = Language(code: code) ?? .greek
-        let isActive = selecting == slot
-        return Button { selecting = slot } label: {
-            VStack(spacing: 5) {
-                Text(lang.flag).font(.system(size: 30))
-                Text(lang.displayName)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isActive ? DS.textPrimary : DS.textSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(isActive ? DS.accentSoft : DS.surface, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(isActive ? DS.accent.opacity(0.4) : DS.border, lineWidth: isActive ? 1.5 : 1))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func dot(_ color: Color) -> some View {
-        Circle().fill(color).frame(width: 8, height: 8)
-    }
-
-    private func select(_ lang: Language) {
-        if selecting == 1 {
-            langACode = lang.code
-            if langBCode == lang.code {
-                langBCode = lang.code == Language.english.code ? Language.greek.code : Language.english.code
-            }
-            selecting = 2
-        } else {
-            langBCode = lang.code
-            if langACode == lang.code {
-                langACode = lang.code == Language.greek.code ? Language.english.code : Language.greek.code
-            }
-            selecting = 1
-        }
-    }
-}
-
-// MARK: - Credits Sheet
-
-struct CreditsPurchaseSheet: View {
-    @ObservedObject var storeManager: StoreManager
-    @ObservedObject var credits: CreditManager
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Capsule().fill(Color.white.opacity(0.18)).frame(width: 40, height: 4).padding(.top, 10)
-            VStack(spacing: 6) {
-                Text("Add Translation Time")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(DS.textPrimary)
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.fill").font(.system(size: 12)).foregroundStyle(DS.accent)
-                    Text(credits.displayTime)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(DS.textSecondary)
-                }
-            }
-            if case .failed(let m) = storeManager.purchaseState {
-                Text(m).font(.system(size: 13, design: .rounded)).foregroundStyle(DS.recording).multilineTextAlignment(.center).padding(.horizontal, 24)
-            } else if case .success(let m) = storeManager.purchaseState {
-                Text(m).font(.system(size: 13, design: .rounded)).foregroundStyle(DS.speaking)
-            }
-            if storeManager.products.isEmpty {
-                Text("Loading products...").font(.system(size: 14, design: .rounded)).foregroundStyle(DS.textTertiary).padding(.vertical, 20)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(storeManager.products, id: \.id) { p in
-                        Button { Task { await storeManager.purchase(p) } } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(p.displayName)
-                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(DS.textPrimary)
-                                    Text(durText(p.id))
-                                        .font(.system(size: 12, design: .rounded))
-                                        .foregroundStyle(DS.textTertiary)
-                                }
-                                Spacer()
-                                Text(p.displayPrice)
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                                    .foregroundStyle(DS.accent)
-                            }
-                            .padding(.horizontal, 18).padding(.vertical, 14)
-                            .background(DS.surface, in: RoundedRectangle(cornerRadius: 16))
-                            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DS.border, lineWidth: 1))
-                        }
-                        .buttonStyle(.plain).disabled(isPurchasing).padding(.horizontal, 20)
-                    }
-                }
-            }
-            if isPurchasing { ProgressView().tint(DS.accent) }
-            Text("30 min free trial · 20 sec per translation")
-                .font(.system(size: 12, design: .rounded)).foregroundStyle(DS.textTertiary).multilineTextAlignment(.center)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DS.bg.ignoresSafeArea())
-    }
-
-    private var isPurchasing: Bool {
-        if case .purchasing = storeManager.purchaseState { return true }; return false
-    }
-    private func durText(_ id: String) -> String {
-        let h = (StoreManager.secondsPerProduct[id] ?? 0) / 3600
-        return "\(h) hour\(h == 1 ? "" : "s") of translation"
     }
 }

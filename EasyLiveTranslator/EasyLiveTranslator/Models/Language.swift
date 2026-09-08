@@ -41,6 +41,17 @@ enum Language: String, CaseIterable, Identifiable {
 
     var id: String { code }
 
+    /// The user's own language, inferred from the device. Used as the default
+    /// "you speak" side so the user only ever has to pick a target language.
+    static var deviceDefault: Language {
+        for identifier in Locale.preferredLanguages {
+            if identifier.hasPrefix("zh-Hant") { return .chineseTraditional }
+            let base = String(identifier.split(separator: "-").first ?? "")
+            if let language = Language(code: base) { return language }
+        }
+        return .english
+    }
+
     init?(code: String) {
         self.init(rawValue: code)
     }
