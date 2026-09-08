@@ -52,6 +52,13 @@ enum Language: String, CaseIterable, Identifiable {
         return .english
     }
 
+    /// A sensible first "translate to" choice: English for everyone, except
+    /// English speakers, who get Spanish — the language itself must never equal
+    /// the user's own or the app would translate a language into itself.
+    static var defaultTarget: Language {
+        deviceDefault == .english ? .spanish : .english
+    }
+
     init?(code: String) {
         self.init(rawValue: code)
     }

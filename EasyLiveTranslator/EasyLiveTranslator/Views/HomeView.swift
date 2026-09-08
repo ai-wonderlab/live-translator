@@ -68,7 +68,7 @@ struct HomeView: View {
     @ObservedObject private var credits = CreditManager.shared
     @StateObject private var storeManager = StoreManager()
     @AppStorage("langA") private var langACode = Language.deviceDefault.code
-    @AppStorage("langB") private var langBCode = Language.english.code
+    @AppStorage("langB") private var langBCode = Language.defaultTarget.code
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     @State private var showingPairSheet  = false
@@ -119,6 +119,9 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { forceFullScreen() }
         .task {
+            // Never let the target collapse onto the user's own language (e.g. a
+            // stored choice from before a device-language change).
+            if langBCode == langACode { langBCode = Language.defaultTarget.code }
             engine.langA = langA
             engine.langB = langB
             await engine.prepareForLaunch()
