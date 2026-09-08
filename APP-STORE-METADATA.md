@@ -2,54 +2,96 @@
 
 ## Core Metadata
 
-- App Name: Live Translator
-- Subtitle: Talk, Translate, Pay As You Go.
-- Bundle ID: `gr.easyfair.app` (πρέπει να ταιριάζει με το Xcode project — τρέχον: δες Signing & Capabilities)
+- App Name (ASC record): **Live Translator – Talk & Go**
+- Subtitle (30 chars max): `Speak. Hear it in any language.`
+- Bundle ID: `gr.easyfair.livetranslator`
+- Team: WDMF PC (`4377RHJY7Z`)
 - Category: Travel (primary), Utilities (secondary)
-- Keywords: live translator, travel translator, voice translator, conversation translator, real-time translation, speak translate, language translation, tourist translator
+- Age rating: 4+
+- Keywords (100 chars max, comma-separated, no spaces after commas):
+  `voice translator,live translation,travel translator,speak translate,conversation,interpreter,greek`
 
-## Description
+## Promotional Text (170 chars — αλλάζει χωρίς νέα έκδοση)
 
-The fastest way to talk across languages.
-Set two languages. Hold the button. Speak. Hear the translation.
-No subscription. Buy hours, use them whenever you travel. First 30 minutes free.
+Hold the button, say anything, hear it back in the language you chose. 30 minutes free, then pay only for the time you use. No subscription.
 
-## In-App Purchases (πρέπει να ταιριάζουν με StoreManager.swift)
+## Description (4000 chars max)
 
-| Product ID | Τύπος | Τίτλος |
-|-----------|-------|--------|
-| `gr.easyfair.credits.1h` | Consumable | 1 Hour |
-| `gr.easyfair.credits.5h` | Consumable | 5 Hours |
-| `gr.easyfair.credits.10h` | Consumable | 10 Hours |
-| `gr.easyfair.credits.50h` | Consumable | 50 Hours |
+Talk to anyone, anywhere. Live Translator turns your voice into another language in seconds — no typing, no menus, no subscription.
 
-> ⚠️ Τιμές: αποφασίζονται στο App Store Connect — το app δείχνει πλέον `product.displayPrice`, οπότε ό,τι οριστεί εκεί εμφανίζεται σωστά. (Παλιές αναφορές: HANDOFF $9.99/10h, παλιό paywall €6.99/10h — μία απόφαση, ένα μέρος.)
+HOW IT WORKS
+Pick the language you want to hear. Hold the button and speak naturally — the app figures out which language you spoke, translates it, and reads it aloud. When the other person answers, hold the button again: their words come back in your language. That's it.
+
+BUILT FOR REAL CONVERSATIONS
+• Detects the spoken language automatically — no switching back and forth
+• Translates the way a native speaker would say it, not word for word
+• Spoken aloud instantly with a natural voice
+• 37 languages, including Greek, English, Spanish, French, German, Italian, Turkish, Arabic, Chinese, Japanese and more
+
+PAY ONLY FOR WHAT YOU USE
+Your first 30 minutes are free. After that, buy translation time in packs — one hour, five, ten or fifty. Time is counted only while you hold the button, it never expires, and there is no subscription to cancel. Your balance follows your Apple ID through iCloud, so it's there on your next device too.
+
+PRIVATE BY DESIGN
+No account. No sign-up. We never store your voice or what you say. Text is translated on the fly and discarded.
+
+Perfect for travel, hotels, restaurants, markets, taxis, medical visits, meeting new people — anywhere words get in the way.
+
+Speech recognition is provided by Apple. Translation requires an internet connection.
+
+## What's New (v1.0)
+
+First release.
 
 ## App Privacy (nutrition labels)
 
-- **Data Not Collected** — δεν υπάρχουν accounts (αφαιρέθηκαν στο v1.0), δεν γίνεται tracking, δεν συλλέγεται audio. Το κείμενο της μετάφρασης περνά transient από το backend χωρίς identifier → δεν θεωρείται "collected" κατά Apple.
+- **Data Not Collected.** Δεν υπάρχουν accounts, δεν γίνεται tracking, δεν συλλέγεται audio. Το κείμενο της μετάφρασης περνά transient από το backend χωρίς identifier → δεν θεωρείται "collected" κατά Apple.
 - Το `PrivacyInfo.xcprivacy` δηλώνει μόνο UserDefaults (CA92.1).
 
-## Screenshot Descriptions
+## App Review — Notes & Contact
 
-1. Hero: dark screen, one big button, two flags — "One button. Two languages."
-2. Recording state: button glowing red — "Hold to speak"
-3. Translation displayed: transcript plus translation text — "Instant translation"
-4. Language picker: grid of flags — "37 languages"
-5. Credits screen: packs displayed — "No subscription. Buy only what you need."
-6. Lifestyle: person in foreign city, phone in hand — travel use case
-
-## Review Notes (για Apple)
+Contact: connect@viralpassion.gr · τηλέφωνο επικοινωνίας της WDMF
 
 ```
-This app requires microphone access to record speech for translation.
-In-app purchases are consumable credits for translation time.
-To test IAP: use a Sandbox tester account. Tap the credits bar or wait for the paywall.
-There is no login or account in the app. Translation time is billed per second while the talk button is held; the balance syncs via iCloud Key-Value storage.
-Free trial: 30 minutes. To reach the paywall quickly, tap "Add time" on the home screen.
+Live Translator is a voice translator. Hold the button, speak, release: the app
+recognizes the speech (Apple Speech), sends the transcript to our translation
+service (OpenAI via our Vercel backend), and reads the result aloud (AVSpeech).
+
+MICROPHONE / SPEECH RECOGNITION: required only while the button is held.
+
+NO ACCOUNT: there is no login of any kind. Nothing to sign in to.
+
+IN-APP PURCHASES: four consumable packs of translation time
+(gr.easyfair.credits.1h / 5h / 10h / 50h). New users get 30 free minutes.
+To reach the paywall quickly: tap "Add time" on the home screen.
+Purchases can be tested with a Sandbox account. Time is charged per second
+while the button is held; the balance is stored in iCloud Key-Value storage.
+
+To test translation: set "Translate to" to any language, hold the button,
+say a sentence in English (or Greek), release.
 ```
 
-## Submission Links (production deployment)
+## In-App Purchases (πρέπει να ταιριάζουν με StoreManager.swift)
+
+| Product ID | Τύπος | Display Name | Τιμή (ASC) |
+|-----------|-------|--------------|------------|
+| `gr.easyfair.credits.1h` | Consumable | 1 Hour | €1.99 ✅ |
+| `gr.easyfair.credits.5h` | Consumable | 5 Hours | εκκρεμεί (πρόταση €4.99) |
+| `gr.easyfair.credits.10h` | Consumable | 10 Hours | εκκρεμεί (πρόταση €8.99) |
+| `gr.easyfair.credits.50h` | Consumable | 50 Hours | εκκρεμεί (πρόταση €29.99) |
+
+Κάθε IAP θέλει **review screenshot** πριν το submit (screenshot του paywall από τη συσκευή αρκεί, το ίδιο και για τα 4).
+
+## Screenshots (iPhone 6.9" υποχρεωτικά — 1320×2868, 3 έως 10)
+
+Τραβηγμένα από τη συσκευή (iPhone 16/17 Pro Max ή simulator), χωρίς debug γραμμές (Release build / TestFlight):
+
+1. Home, idle — "Translate to 🇫🇷 French", σφαίρα, HOLD TO TALK → caption: **One button. Any language.**
+2. Recording — κόκκινη κατάσταση LISTENING → **Just talk. It detects your language.**
+3. Μετάφραση στην κάρτα + "English detected" → **Hear it back instantly.**
+4. Language picker → **37 languages.**
+5. Paywall με τα 4 πακέτα → **No subscription. Pay as you go.**
+
+## Submission Links (production)
 
 - Privacy URL: https://backend-gamma-eight-88.vercel.app/privacy
 - Support URL: https://backend-gamma-eight-88.vercel.app/support
