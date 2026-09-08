@@ -62,7 +62,13 @@ struct PaywallSheet: View {
 
                 if storeManager.products.isEmpty {
                     VStack(spacing: 12) {
-                        ProgressView().tint(.white)
+                        if storeManager.purchaseState == .loading {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "wifi.exclamationmark")
+                                .font(.system(size: 22))
+                                .foregroundStyle(.white.opacity(0.4))
+                        }
                         Text(storeManager.purchaseState == .loading ? "Loading plans..." : "Plans unavailable. Check your connection and try again.")
                             .font(.system(size: 13, design: .rounded)).foregroundStyle(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
