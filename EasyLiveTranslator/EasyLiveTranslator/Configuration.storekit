@@ -1,75 +1,75 @@
 {
-  "identifier" : "8A3F2C10-0000-4000-8000-000000000001",
-  "nonRenewingSubscriptions" : [],
-  "products" : [
+  "identifier": "8A3F2C10-0000-4000-8000-000000000001",
+  "nonRenewingSubscriptions": [],
+  "products": [
     {
-      "displayPrice" : "1.99",
-      "familyShareable" : false,
-      "internalID" : "1H",
-      "localizations" : [
+      "displayPrice": "1.99",
+      "familyShareable": false,
+      "internalID": "1H",
+      "localizations": [
         {
-          "description" : "1 hour of translation time",
-          "displayName" : "1 Hour",
-          "locale" : "en_US"
+          "description": "1 hour of translation time",
+          "displayName": "1 Hour",
+          "locale": "en_US"
         }
       ],
-      "productID" : "gr.easyfair.credits.1h",
-      "referenceName" : "Credits 1h",
-      "type" : "Consumable"
+      "productID": "gr.easyfair.credits.1h",
+      "referenceName": "Credits 1h",
+      "type": "Consumable"
     },
     {
-      "displayPrice" : "6.99",
-      "familyShareable" : false,
-      "internalID" : "5H",
-      "localizations" : [
+      "displayPrice": "4.99",
+      "familyShareable": false,
+      "internalID": "5H",
+      "localizations": [
         {
-          "description" : "5 hours of translation time",
-          "displayName" : "5 Hours",
-          "locale" : "en_US"
+          "description": "5 hours of translation time",
+          "displayName": "5 Hours",
+          "locale": "en_US"
         }
       ],
-      "productID" : "gr.easyfair.credits.5h",
-      "referenceName" : "Credits 5h",
-      "type" : "Consumable"
+      "productID": "gr.easyfair.credits.5h",
+      "referenceName": "Credits 5h",
+      "type": "Consumable"
     },
     {
-      "displayPrice" : "11.99",
-      "familyShareable" : false,
-      "internalID" : "10H",
-      "localizations" : [
+      "displayPrice": "8.99",
+      "familyShareable": false,
+      "internalID": "10H",
+      "localizations": [
         {
-          "description" : "10 hours of translation time",
-          "displayName" : "10 Hours",
-          "locale" : "en_US"
+          "description": "10 hours of translation time",
+          "displayName": "10 Hours",
+          "locale": "en_US"
         }
       ],
-      "productID" : "gr.easyfair.credits.10h",
-      "referenceName" : "Credits 10h",
-      "type" : "Consumable"
+      "productID": "gr.easyfair.credits.10h",
+      "referenceName": "Credits 10h",
+      "type": "Consumable"
     },
     {
-      "displayPrice" : "39.99",
-      "familyShareable" : false,
-      "internalID" : "50H",
-      "localizations" : [
+      "displayPrice": "29.99",
+      "familyShareable": false,
+      "internalID": "50H",
+      "localizations": [
         {
-          "description" : "50 hours of translation time",
-          "displayName" : "50 Hours",
-          "locale" : "en_US"
+          "description": "50 hours of translation time",
+          "displayName": "50 Hours",
+          "locale": "en_US"
         }
       ],
-      "productID" : "gr.easyfair.credits.50h",
-      "referenceName" : "Credits 50h",
-      "type" : "Consumable"
+      "productID": "gr.easyfair.credits.50h",
+      "referenceName": "Credits 50h",
+      "type": "Consumable"
     }
   ],
-  "settings" : {
-    "_askToBuyEnabled" : true,
-    "_disableDialogs" : false
+  "settings": {
+    "_askToBuyEnabled": true,
+    "_disableDialogs": false
   },
-  "subscriptionGroups" : [],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "subscriptionGroups": [],
+  "version": {
+    "major": 3,
+    "minor": 0
   }
 }

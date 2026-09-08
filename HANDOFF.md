@@ -152,10 +152,10 @@ vercel --prod
 
 | Product ID | Τύπος | Τιμή | Τίτλος |
 |-----------|-------|------|--------|
-| `gr.easyfair.credits.1h` | Consumable | $0.99 | 1 Hour |
-| `gr.easyfair.credits.5h` | Consumable | $3.99 | 5 Hours |
-| `gr.easyfair.credits.10h` | Consumable | $9.99 | 10 Hours |
-| `gr.easyfair.credits.50h` | Consumable | $24.99 | 50 Hours |
+| `gr.easyfair.credits.1h` | Consumable | €1.99 (ASC, 2026-09-08) | 1 Hour |
+| `gr.easyfair.credits.5h` | Consumable | βλ. STATE.md | 5 Hours |
+| `gr.easyfair.credits.10h` | Consumable | βλ. STATE.md | 10 Hours |
+| `gr.easyfair.credits.50h` | Consumable | βλ. STATE.md | 50 Hours |
 
 > ⚠️ Τα Product IDs **πρέπει** να ταιριάζουν ακριβώς με το `StoreManager.swift`.  
 > Αν αλλάξεις IDs → αλλαγή και στο `Store/StoreManager.swift` γραμμές 12-16.

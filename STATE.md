@@ -23,7 +23,7 @@ _Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 | 38 Γλώσσες | Full list incl. Albanian, Romanian, Ukrainian κτλ |
 | Supabase Auth | Apple Sign In + email/password — λειτουργικό |
 | ProfileSheet | Person icon στο creditsRow, πάντα ορατό |
-| PaywallSheet | Trigger όταν credits=0, 4 plans (€0.99/3.99/6.99/24.99) |
+| PaywallSheet | Trigger όταν credits=0 ή από "Add time" — 4 consumables, τιμές από App Store Connect (`displayPrice`) |
 | Mic Lock | 🔒 + disabled όταν credits=0, πατώντας ανοίγει paywall |
 | Free Trial | 30 λεπτά δωρεάν, CreditManager ήδη υλοποιημένο |
 
@@ -70,6 +70,8 @@ _Last updated: 2026-09-04 (branch fix/prelaunch-audit)_
 | | |
 |-|-|
 | **Team ID** | `4377RHJY7Z` (WDMF PC — paid Apple Developer Program) |
+| **App Store name** | Live Translator – Talk & Go (ASC record δημιουργήθηκε 2026-09-08) |
+| **IAP τιμές (ASC)** | 1h = **€1.99** (ορίστηκε 2026-09-08). 5h / 10h / 50h: εκκρεμούν — πρόταση €4.99 / €8.99 / €29.99. Η ΜΟΝΗ πηγή αλήθειας είναι το App Store Connect· το `Configuration.storekit` είναι μόνο για τοπικό testing |
 | **Bundle ID** | `gr.easyfair.livetranslator` (το παλιό `gr.easyfair.app` έμεινε στο personal team VKS7898WXK) |
 | **Repo** | https://github.com/ai-wonderlab/live-translator |
 | **Branch** | main |
