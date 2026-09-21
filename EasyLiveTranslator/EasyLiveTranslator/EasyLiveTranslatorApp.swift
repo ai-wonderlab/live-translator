@@ -96,7 +96,7 @@ struct PaywallSheet: View {
                     ProgressView().tint(accent).padding(.bottom, 12)
                 }
 
-                Text("Time is charged only while you hold the button.\nHours never expire · No subscription")
+                Text("Recorded time is rounded up to a second (60 sec maximum per translation).\nHours never expire · No subscription")
                     .font(.system(size: 12, design: .rounded))
                     .foregroundStyle(.white.opacity(0.35))
                     .multilineTextAlignment(.center)

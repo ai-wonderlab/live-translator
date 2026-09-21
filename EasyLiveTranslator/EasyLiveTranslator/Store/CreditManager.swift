@@ -17,7 +17,7 @@ final class CreditManager: ObservableObject {
     static let freeTrialSeconds = 1800
     /// Billing is by real recording time (how long the button is held),
     /// clamped so a tap can't cost less than this and a stuck hold can't cost more than `maxSecondsPerTranslation`.
-    static let minSecondsPerTranslation = 3
+    static let minSecondsPerTranslation = 1
     static let maxSecondsPerTranslation = 60
 
     private static let creditSecondsKey = "creditSeconds"
@@ -74,8 +74,9 @@ final class CreditManager: ObservableObject {
     /// Deducts the real recording duration. Free-trial time is consumed first;
     /// any remainder comes out of purchased time.
     func deduct(recordingSeconds: Double) {
-        var deduction = Int(recordingSeconds.rounded(.up))
-        deduction = min(Self.maxSecondsPerTranslation, max(Self.minSecondsPerTranslation, deduction))
+        guard recordingSeconds.isFinite, recordingSeconds > 0 else { return }
+        var deduction = Int(min(Double(Self.maxSecondsPerTranslation),
+                                max(Double(Self.minSecondsPerTranslation), recordingSeconds.rounded(.up))))
 
         if remainingFreeTrialSeconds > 0 {
             let fromTrial = min(remainingFreeTrialSeconds, deduction)

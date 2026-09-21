@@ -33,7 +33,7 @@ final class TranslationEngine: ObservableObject {
     @Published var isPreparingPermissions = false
     @Published var errorMessage: String?
     private var lastTranslationAt: Date = .distantPast
-    private var holdStartedAt: Date = .distantPast
+    private var holdStartedAt: TimeInterval = 0
     // Short debounce against accidental double-taps; isProcessing already guards overlap.
     private static let translationCooldown: TimeInterval = 0.4
     @Published private(set) var history: [TranslationEntry] = []
@@ -90,7 +90,7 @@ final class TranslationEngine: ObservableObject {
     }
 
     func beginHoldIfNeeded() {
-        guard permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing,
+        guard credits.hasCredits, permissionsGranted, !isPreparingPermissions, !isListening, !isProcessing,
               Date().timeIntervalSince(lastTranslationAt) >= Self.translationCooldown else { return }
         do {
             transcript = ""
@@ -99,7 +99,7 @@ final class TranslationEngine: ObservableObject {
             errorMessage = nil
             lastHeardCandidates = []
             try speechRecognizer.startListening()
-            holdStartedAt = Date()
+            holdStartedAt = ProcessInfo.processInfo.systemUptime
             isListening = true
         } catch {
             errorMessage = error.localizedDescription
@@ -114,7 +114,7 @@ final class TranslationEngine: ObservableObject {
         errorMessage = nil
 
         let startedAt = Date()
-        let recordingSeconds = startedAt.timeIntervalSince(holdStartedAt)
+        let recordingSeconds = max(0, ProcessInfo.processInfo.systemUptime - holdStartedAt)
 
         do {
             // The recording is transcribed once per candidate language; which
