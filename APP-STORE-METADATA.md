@@ -1,5 +1,7 @@
 # Live Translator — App Store Metadata
 
+> Release note (21 September 2026): this document describes repository source, not the verified September binary. Resolve the source/build mismatch in `APP-REVIEW-2026-09-21.md` before updating App Store Connect.
+
 ## Core Metadata
 
 - App Name: Live Translator
@@ -10,9 +12,9 @@
 
 ## Description
 
-The fastest way to talk across languages.
+Talk across languages with a hold-to-speak conversation flow.
 Set two languages. Hold the button. Speak. Hear the translation.
-No subscription. Buy hours, use them whenever you travel. First 30 minutes free.
+No subscription. Buy translation time when you need it. First 30 minutes free. Successful translations use recorded time, rounded up to a second; processing and playback time are not charged.
 
 ## In-App Purchases (πρέπει να ταιριάζουν με StoreManager.swift)
 
@@ -35,7 +37,7 @@ No subscription. Buy hours, use them whenever you travel. First 30 minutes free.
 1. Hero: dark screen, one big button, two flags — "One button. Two languages."
 2. Recording state: button glowing red — "Hold to speak"
 3. Translation displayed: transcript plus translation text — "Instant translation"
-4. Language picker: grid of flags — "38 languages"
+4. Language picker: grid of flags — "37 languages"
 5. Credits screen: packs displayed — "No subscription. Buy only what you need."
 6. Lifestyle: person in foreign city, phone in hand — travel use case
 
@@ -45,7 +47,10 @@ No subscription. Buy hours, use them whenever you travel. First 30 minutes free.
 This app requires microphone access to record speech for translation.
 In-app purchases are consumable credits for translation time.
 To test IAP: use a Sandbox tester account. Tap the credits bar or wait for the paywall.
-No login required to use the app. Account is optional (sync); account deletion is available in Profile.
+No login is required to translate or purchase time. This repository includes optional accounts; account deletion is available in Profile and must be tested against the deployed backend.
+Choose two languages before speaking. Speech recognition starts in the first language and alternates after each successful translation.
+Translation first attempts Apple on-device models when installed, otherwise it uses our cloud service. This does not guarantee offline speech recognition.
+Successful translations charge recorded duration rounded up to one second. Network processing and speech playback are not charged.
 ```
 
 ## Submission Links (production deployment)

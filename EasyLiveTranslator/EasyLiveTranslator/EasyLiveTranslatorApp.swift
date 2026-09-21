@@ -309,7 +309,7 @@ struct PaywallSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(hours) hour\(hours > 1 ? "s" : "")")
                     .font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(.white)
-                Text("~\(hours * 180) translations")
+                Text("Charged by recorded second")
                     .font(.system(size: 12, design: .rounded)).foregroundStyle(.white.opacity(0.45))
             }
             Spacer()

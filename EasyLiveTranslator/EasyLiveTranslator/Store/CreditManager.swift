@@ -15,7 +15,6 @@ final class CreditManager: ObservableObject {
     static let shared = CreditManager()
 
     static let freeTrialSeconds = 1800
-    static let secondsPerTranslation = 20
 
     private static let creditSecondsKey = "creditSeconds"
     private static let freeTrialConsumedKey = "freeTrialConsumedSeconds"
@@ -65,20 +64,20 @@ final class CreditManager: ObservableObject {
         }
     }
 
-    func deductTranslation() {
-        let deduction = Self.secondsPerTranslation
+    /// Charge only successful recordings, rounded up to a whole second.
+    /// Consume trial time first, then any purchased balance in the same call.
+    func deductTranslation(recordedDuration: TimeInterval) {
+        guard recordedDuration.isFinite, recordedDuration > 0 else { return }
+        let deduction = Int(min(recordedDuration.rounded(.up), Double(totalRemainingSeconds)))
+        let trialDeduction = min(remainingFreeTrialSeconds, deduction)
+        freeTrialConsumedSeconds += trialDeduction
+        defaults.set(freeTrialConsumedSeconds, forKey: Self.freeTrialConsumedKey)
 
-        if remainingFreeTrialSeconds > 0 {
-            let consumed = min(Self.freeTrialSeconds, freeTrialConsumedSeconds + deduction)
-            freeTrialConsumedSeconds = consumed
-            defaults.set(consumed, forKey: Self.freeTrialConsumedKey)
-            return
+        let purchasedDeduction = deduction - trialDeduction
+        if purchasedDeduction > 0 {
+            remainingSeconds -= purchasedDeduction
+            savePurchasedSeconds()
         }
-
-        guard remainingSeconds > 0 else { return }
-
-        remainingSeconds = max(0, remainingSeconds - deduction)
-        savePurchasedSeconds()
     }
 
     func addSeconds(_ seconds: Int) {
