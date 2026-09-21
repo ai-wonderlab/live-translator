@@ -300,7 +300,7 @@ struct HomeView: View {
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(DS.textSecondary)
             Spacer()
-            Button { showProfile = true } label: {
+            Button { showingCreditsSheet = true } label: {
                 Label("Add time", systemImage: "plus")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(DS.accent)
@@ -636,7 +636,7 @@ struct CreditsPurchaseSheet: View {
                 }
             }
             if isPurchasing { ProgressView().tint(DS.accent) }
-            Text("30 min free trial · 20 sec per translation")
+            Text("30 min free · Recorded time, rounded up to a second")
                 .font(.system(size: 12, design: .rounded)).foregroundStyle(DS.textTertiary).multilineTextAlignment(.center)
             Spacer()
         }

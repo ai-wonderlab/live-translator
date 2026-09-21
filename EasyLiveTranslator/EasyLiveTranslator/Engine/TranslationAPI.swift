@@ -25,10 +25,10 @@ struct TranslationAPI {
         langA: Language,
         langB: Language
     ) async throws -> TranslationResult {
-        let sourceLanguage = langA
-        let targetLanguage = langB
         guard let appSecret = Bundle.main.object(forInfoDictionaryKey: "TranslationAPIAppSecret") as? String,
-              !appSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+              !appSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !appSecret.contains("$("),
+              appSecret != "your-secret-here" else {
             throw TranslationAPIError.missingAppSecret
         }
 
@@ -44,7 +44,6 @@ struct TranslationAPI {
             )
         )
 
-        print("[API] → POST /translate")
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
@@ -78,7 +77,6 @@ struct TranslationAPI {
         if let apiError = result.error, !apiError.isEmpty {
             throw TranslationAPIError.server("Translation failed. Please try again.")
         }
-        print("[API] ← {detected: \(result.detected), translation: \(result.translation)}")
         return result
     }
 }
